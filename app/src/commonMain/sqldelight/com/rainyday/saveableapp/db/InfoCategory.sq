@@ -1,0 +1,32 @@
+CREATE TABLE info_categories (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    icon TEXT NOT NULL,
+    colorHex TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0
+);
+
+selectAll:
+SELECT * FROM info_categories ORDER BY position ASC;
+
+selectById:
+SELECT * FROM info_categories WHERE id = :id;
+
+insertNew:
+INSERT INTO info_categories(name, icon, colorHex, position) VALUES (:name, :icon, :colorHex, :position);
+
+insertOrReplace:
+INSERT OR REPLACE INTO info_categories(id, name, icon, colorHex, position)
+VALUES (:id, :name, :icon, :colorHex, :position);
+
+update:
+UPDATE info_categories SET name = :name, icon = :icon, colorHex = :colorHex, position = :position WHERE id = :id;
+
+deleteById:
+DELETE FROM info_categories WHERE id = :id;
+
+clear:
+DELETE FROM info_categories;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

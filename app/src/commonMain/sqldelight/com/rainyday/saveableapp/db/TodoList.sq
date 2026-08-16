@@ -1,0 +1,35 @@
+CREATE TABLE todo_lists (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    colorHex TEXT NOT NULL,
+    icon TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
+    createdAt INTEGER NOT NULL
+);
+
+selectAll:
+SELECT * FROM todo_lists ORDER BY position ASC;
+
+selectById:
+SELECT * FROM todo_lists WHERE id = :id;
+
+insertNew:
+INSERT INTO todo_lists(name, colorHex, icon, position, createdAt)
+VALUES (:name, :colorHex, :icon, :position, :createdAt);
+
+insertOrReplace:
+INSERT OR REPLACE INTO todo_lists(id, name, colorHex, icon, position, createdAt)
+VALUES (:id, :name, :colorHex, :icon, :position, :createdAt);
+
+update:
+UPDATE todo_lists SET name = :name, colorHex = :colorHex, icon = :icon, position = :position, createdAt = :createdAt
+WHERE id = :id;
+
+deleteById:
+DELETE FROM todo_lists WHERE id = :id;
+
+clear:
+DELETE FROM todo_lists;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

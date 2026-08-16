@@ -1,0 +1,52 @@
+import kotlin.Boolean;
+
+CREATE TABLE info_blocks (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    categoryId INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    isSensitive INTEGER AS Boolean NOT NULL DEFAULT 0,
+    isFavorite INTEGER AS Boolean NOT NULL DEFAULT 0,
+    position INTEGER NOT NULL DEFAULT 0,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL,
+    expiryDate INTEGER,
+    FOREIGN KEY (categoryId) REFERENCES info_categories(id) ON DELETE CASCADE
+);
+
+CREATE INDEX info_blocks_categoryId ON info_blocks(categoryId);
+
+selectForCategory:
+SELECT * FROM info_blocks WHERE categoryId = :categoryId ORDER BY position ASC;
+
+selectFavorites:
+SELECT * FROM info_blocks WHERE isFavorite = 1 ORDER BY updatedAt DESC;
+
+search:
+SELECT * FROM info_blocks WHERE title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%'
+ORDER BY updatedAt DESC;
+
+selectAllForBackup:
+SELECT * FROM info_blocks;
+
+insertNew:
+INSERT INTO info_blocks(categoryId, title, content, isSensitive, isFavorite, position, createdAt, updatedAt, expiryDate)
+VALUES (:categoryId, :title, :content, :isSensitive, :isFavorite, :position, :createdAt, :updatedAt, :expiryDate);
+
+insertOrReplace:
+INSERT OR REPLACE INTO info_blocks(id, categoryId, title, content, isSensitive, isFavorite, position, createdAt, updatedAt, expiryDate)
+VALUES (:id, :categoryId, :title, :content, :isSensitive, :isFavorite, :position, :createdAt, :updatedAt, :expiryDate);
+
+update:
+UPDATE info_blocks SET categoryId = :categoryId, title = :title, content = :content, isSensitive = :isSensitive,
+    isFavorite = :isFavorite, position = :position, createdAt = :createdAt, updatedAt = :updatedAt, expiryDate = :expiryDate
+WHERE id = :id;
+
+deleteById:
+DELETE FROM info_blocks WHERE id = :id;
+
+clear:
+DELETE FROM info_blocks;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

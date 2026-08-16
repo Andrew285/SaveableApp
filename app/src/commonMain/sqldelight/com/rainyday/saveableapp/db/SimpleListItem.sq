@@ -1,0 +1,50 @@
+import kotlin.Boolean;
+
+CREATE TABLE simple_list_items (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    listId INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    note TEXT,
+    isChecked INTEGER AS Boolean NOT NULL DEFAULT 0,
+    position INTEGER NOT NULL DEFAULT 0,
+    createdAt INTEGER NOT NULL,
+    FOREIGN KEY (listId) REFERENCES simple_lists(id) ON DELETE CASCADE
+);
+
+CREATE INDEX simple_list_items_listId ON simple_list_items(listId);
+
+selectForList:
+SELECT * FROM simple_list_items WHERE listId = :listId ORDER BY isChecked ASC, position ASC;
+
+search:
+SELECT * FROM simple_list_items WHERE text LIKE '%' || :query || '%' OR note LIKE '%' || :query || '%'
+ORDER BY createdAt DESC;
+
+selectAllForBackup:
+SELECT * FROM simple_list_items;
+
+selectProgress:
+SELECT listId, COUNT(*) AS total, SUM(CASE WHEN isChecked THEN 1 ELSE 0 END) AS checked
+FROM simple_list_items GROUP BY listId;
+
+insertNew:
+INSERT INTO simple_list_items(listId, text, note, isChecked, position, createdAt)
+VALUES (:listId, :text, :note, :isChecked, :position, :createdAt);
+
+insertOrReplace:
+INSERT OR REPLACE INTO simple_list_items(id, listId, text, note, isChecked, position, createdAt)
+VALUES (:id, :listId, :text, :note, :isChecked, :position, :createdAt);
+
+update:
+UPDATE simple_list_items SET listId = :listId, text = :text, note = :note, isChecked = :isChecked,
+    position = :position, createdAt = :createdAt
+WHERE id = :id;
+
+deleteById:
+DELETE FROM simple_list_items WHERE id = :id;
+
+clear:
+DELETE FROM simple_list_items;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

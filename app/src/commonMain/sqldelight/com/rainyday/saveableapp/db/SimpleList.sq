@@ -1,0 +1,39 @@
+import kotlin.Boolean;
+
+CREATE TABLE simple_lists (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    icon TEXT NOT NULL,
+    colorHex TEXT NOT NULL,
+    showCheckbox INTEGER AS Boolean NOT NULL DEFAULT 1,
+    position INTEGER NOT NULL DEFAULT 0,
+    createdAt INTEGER NOT NULL
+);
+
+selectAll:
+SELECT * FROM simple_lists ORDER BY position ASC;
+
+selectById:
+SELECT * FROM simple_lists WHERE id = :id;
+
+insertNew:
+INSERT INTO simple_lists(name, icon, colorHex, showCheckbox, position, createdAt)
+VALUES (:name, :icon, :colorHex, :showCheckbox, :position, :createdAt);
+
+insertOrReplace:
+INSERT OR REPLACE INTO simple_lists(id, name, icon, colorHex, showCheckbox, position, createdAt)
+VALUES (:id, :name, :icon, :colorHex, :showCheckbox, :position, :createdAt);
+
+update:
+UPDATE simple_lists SET name = :name, icon = :icon, colorHex = :colorHex, showCheckbox = :showCheckbox,
+    position = :position, createdAt = :createdAt
+WHERE id = :id;
+
+deleteById:
+DELETE FROM simple_lists WHERE id = :id;
+
+clear:
+DELETE FROM simple_lists;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

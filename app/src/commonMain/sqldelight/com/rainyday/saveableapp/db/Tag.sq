@@ -1,0 +1,23 @@
+CREATE TABLE tags (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    colorHex TEXT NOT NULL
+);
+
+selectAll:
+SELECT * FROM tags ORDER BY name ASC;
+
+insertNewOrIgnore:
+INSERT OR IGNORE INTO tags(name, colorHex) VALUES (:name, :colorHex);
+
+insertOrReplace:
+INSERT OR REPLACE INTO tags(id, name, colorHex) VALUES (:id, :name, :colorHex);
+
+deleteById:
+DELETE FROM tags WHERE id = :id;
+
+clear:
+DELETE FROM tags;
+
+lastInsertRowId:
+SELECT last_insert_rowid();

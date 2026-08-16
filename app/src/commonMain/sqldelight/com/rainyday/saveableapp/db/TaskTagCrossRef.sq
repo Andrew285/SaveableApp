@@ -1,0 +1,31 @@
+CREATE TABLE task_tag_cross_ref (
+    taskId INTEGER NOT NULL,
+    tagId INTEGER NOT NULL,
+    PRIMARY KEY (taskId, tagId),
+    FOREIGN KEY (taskId) REFERENCES todo_tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (tagId) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+CREATE INDEX task_tag_cross_ref_taskId ON task_tag_cross_ref(taskId);
+CREATE INDEX task_tag_cross_ref_tagId ON task_tag_cross_ref(tagId);
+
+selectAll:
+SELECT * FROM task_tag_cross_ref;
+
+selectForTasks:
+SELECT * FROM task_tag_cross_ref WHERE taskId IN :taskIds;
+
+insertOrIgnore:
+INSERT OR IGNORE INTO task_tag_cross_ref(taskId, tagId) VALUES (:taskId, :tagId);
+
+insertOrReplace:
+INSERT OR REPLACE INTO task_tag_cross_ref(taskId, tagId) VALUES (:taskId, :tagId);
+
+deleteForTask:
+DELETE FROM task_tag_cross_ref WHERE taskId = :taskId;
+
+deleteOne:
+DELETE FROM task_tag_cross_ref WHERE taskId = :taskId AND tagId = :tagId;
+
+clear:
+DELETE FROM task_tag_cross_ref;

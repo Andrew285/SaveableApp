@@ -1,0 +1,65 @@
+import com.rainyday.saveableapp.data.local.Priority;
+import kotlin.Boolean;
+
+CREATE TABLE todo_tasks (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    listId INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    notes TEXT,
+    isDone INTEGER AS Boolean NOT NULL DEFAULT 0,
+    priority INTEGER AS Priority NOT NULL DEFAULT 1,
+    dueDate INTEGER,
+    colorHex TEXT,
+    position INTEGER NOT NULL DEFAULT 0,
+    createdAt INTEGER NOT NULL,
+    completedAt INTEGER,
+    isArchived INTEGER AS Boolean NOT NULL DEFAULT 0,
+    FOREIGN KEY (listId) REFERENCES todo_lists(id) ON DELETE CASCADE
+);
+
+CREATE INDEX todo_tasks_listId ON todo_tasks(listId);
+
+selectForList:
+SELECT * FROM todo_tasks WHERE listId = :listId AND isArchived = 0 ORDER BY isDone ASC, position ASC;
+
+selectArchivedForList:
+SELECT * FROM todo_tasks WHERE listId = :listId AND isArchived = 1 ORDER BY completedAt DESC;
+
+selectAllTasks:
+SELECT * FROM todo_tasks WHERE isArchived = 0 ORDER BY createdAt DESC;
+
+search:
+SELECT * FROM todo_tasks WHERE isArchived = 0 AND (title LIKE '%' || :query || '%' OR notes LIKE '%' || :query || '%')
+ORDER BY createdAt DESC;
+
+selectById:
+SELECT * FROM todo_tasks WHERE id = :id;
+
+selectAllForBackup:
+SELECT * FROM todo_tasks;
+
+insertNew:
+INSERT INTO todo_tasks(listId, title, notes, isDone, priority, dueDate, colorHex, position, createdAt, completedAt, isArchived)
+VALUES (:listId, :title, :notes, :isDone, :priority, :dueDate, :colorHex, :position, :createdAt, :completedAt, :isArchived);
+
+insertOrReplace:
+INSERT OR REPLACE INTO todo_tasks(id, listId, title, notes, isDone, priority, dueDate, colorHex, position, createdAt, completedAt, isArchived)
+VALUES (:id, :listId, :title, :notes, :isDone, :priority, :dueDate, :colorHex, :position, :createdAt, :completedAt, :isArchived);
+
+update:
+UPDATE todo_tasks SET listId = :listId, title = :title, notes = :notes, isDone = :isDone, priority = :priority,
+    dueDate = :dueDate, colorHex = :colorHex, position = :position, createdAt = :createdAt, completedAt = :completedAt,
+    isArchived = :isArchived
+WHERE id = :id;
+
+deleteById:
+DELETE FROM todo_tasks WHERE id = :id;
+
+archiveCompletedForList:
+UPDATE todo_tasks SET isArchived = 1 WHERE listId = :listId AND isDone = 1;
+
+clear:
+DELETE FROM todo_tasks;
+
+lastInsertRowId:
+SELECT last_insert_rowid();
