@@ -37,6 +37,7 @@ import com.rainyday.saveableapp.ui.components.EditListDialog
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.IconCatalog
 import com.rainyday.saveableapp.ui.components.ListRow
+import com.rainyday.saveableapp.ui.components.LoadingIndicator
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import kotlinx.coroutines.launch
 
@@ -79,8 +80,10 @@ fun TodoListsScreen(
             }
         }
     ) { padding ->
-        if (lists.isEmpty()) {
-            EmptyState(
+        val currentLists = lists
+        when {
+            currentLists == null -> LoadingIndicator(modifier = Modifier.padding(padding))
+            currentLists.isEmpty() -> EmptyState(
                 icon = Icons.Filled.Checklist,
                 title = "No lists yet",
                 subtitle = "Create a list to start tracking tasks with priorities, tags, and colors.",
@@ -88,20 +91,21 @@ fun TodoListsScreen(
                 onAction = { showCreateDialog = true },
                 modifier = Modifier.padding(padding)
             )
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, 96.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(lists, key = { it.id }) { list ->
-                    ListRow(
-                        title = list.name,
-                        subtitle = null,
-                        icon = IconCatalog.resolve(list.icon),
-                        accentHex = list.colorHex,
-                        onClick = { onOpenList(list.id) },
-                        onLongClick = { listPendingEdit = list }
-                    )
+            else -> {
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(currentLists, key = { it.id }) { list ->
+                        ListRow(
+                            title = list.name,
+                            subtitle = null,
+                            icon = IconCatalog.resolve(list.icon),
+                            accentHex = list.colorHex,
+                            onClick = { onOpenList(list.id) },
+                            onLongClick = { listPendingEdit = list }
+                        )
+                    }
                 }
             }
         }

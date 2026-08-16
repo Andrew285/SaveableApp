@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,7 +19,6 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,8 +55,8 @@ import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.parseHexColor
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import com.rainyday.saveableapp.ui.screens.todo.formatDate
+import com.rainyday.saveableapp.ui.security.LockGateContent
 import com.rainyday.saveableapp.ui.security.SecureScreenEffect
-import com.rainyday.saveableapp.ui.security.rememberBiometricAuthenticator
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -203,8 +201,7 @@ private fun ClipboardManager.copyText(text: String) = setText(AnnotatedString(te
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LockedGate(categoryName: String, onUnlocked: () -> Unit, onBack: () -> Unit) {
-    val authenticator = rememberBiometricAuthenticator()
-    var error by remember { mutableStateOf<String?>(null) }
+    val container = appContainer()
 
     Scaffold(
         topBar = {
@@ -218,52 +215,13 @@ private fun LockedGate(categoryName: String, onUnlocked: () -> Unit, onBack: () 
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                Icons.Filled.Lock,
-                contentDescription = null,
-                modifier = Modifier.size(56.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-            )
-            Text(
-                text = "Locked",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 16.dp)
-            )
-            Text(
-                text = "Verify it's you to view this information.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-            if (error != null) {
-                Text(
-                    text = error.orEmpty(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-            Button(
-                onClick = {
-                    authenticator.authenticate(
-                        title = "Unlock $categoryName",
-                        onSuccess = onUnlocked,
-                        onError = { error = it }
-                    )
-                },
-                modifier = Modifier.padding(top = 20.dp)
-            ) {
-                Text("Unlock")
-            }
-        }
+        LockGateContent(
+            title = "Locked",
+            subtitle = "Verify it's you to view this information.",
+            preferencesRepository = container.preferencesRepository,
+            onUnlocked = onUnlocked,
+            modifier = Modifier.padding(padding)
+        )
     }
 }
 

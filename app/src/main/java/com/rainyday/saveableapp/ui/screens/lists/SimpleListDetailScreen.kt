@@ -1,8 +1,11 @@
 package com.rainyday.saveableapp.ui.screens.lists
 
 import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +21,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -43,13 +47,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
 import com.rainyday.saveableapp.data.local.SimpleListItemEntity
 import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.EmptyState
+import com.rainyday.saveableapp.ui.components.FieldValueChip
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -65,12 +72,16 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
     )
     val list by viewModel.list.collectAsState()
     val items by viewModel.items.collectAsState()
+    val fields by viewModel.fields.collectAsState()
+    val fieldValuesByItem by viewModel.fieldValuesByItem.collectAsState()
+    val fieldsById = fields.associateBy { it.id }
     val showCheckbox = list?.showCheckbox ?: true
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var itemPendingEdit by remember { mutableStateOf<SimpleListItemEntity?>(null) }
+    var showFieldsManager by remember { mutableStateOf(false) }
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -87,6 +98,9 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showFieldsManager = true }) {
+                        Icon(Icons.Filled.Tune, contentDescription = "Manage fields")
+                    }
                     IconButton(onClick = {
                         val text = buildString {
                             appendLine(list?.name ?: "List")
@@ -94,6 +108,7 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
                                 if (showCheckbox) append(if (item.isChecked) "[x] " else "[ ] ")
                                 append(item.text)
                                 if (!item.note.isNullOrBlank()) append(" — ${item.note}")
+                                if (!item.url.isNullOrBlank()) append(" (${item.url})")
                                 appendLine()
                             }
                         }
@@ -132,9 +147,12 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
             ) {
                 itemsIndexed(items, key = { _, item -> item.id }) { _, item ->
                     ReorderableItem(reorderableState, key = item.id) { _ ->
+                        val chips = fieldValuesByItem[item.id].orEmpty()
+                            .mapNotNull { value -> fieldsById[value.fieldId]?.let { it to value.value } }
                         ItemRow(
                             item = item,
                             showCheckbox = showCheckbox,
+                            fieldChips = chips,
                             onToggleChecked = { viewModel.setChecked(item, it) },
                             onClick = { itemPendingEdit = item },
                             dragHandle = { Modifier.draggableHandle() }
@@ -148,9 +166,10 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
     if (showAddDialog) {
         ItemEditDialog(
             title = "New item",
+            fields = fields,
             onDismiss = { showAddDialog = false },
-            onConfirm = { text, note ->
-                viewModel.createItem(text, note)
+            onConfirm = { text, note, url, fieldValues ->
+                viewModel.createItem(text, note, url, fieldValues)
                 showAddDialog = false
             }
         )
@@ -161,9 +180,12 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
             title = "Edit item",
             initialText = item.text,
             initialNote = item.note.orEmpty(),
+            initialUrl = item.url.orEmpty(),
+            fields = fields,
+            initialFieldValues = fieldValuesByItem[item.id].orEmpty().associate { it.fieldId to it.value },
             onDismiss = { itemPendingEdit = null },
-            onConfirm = { text, note ->
-                viewModel.updateItem(item, text, note)
+            onConfirm = { text, note, url, fieldValues ->
+                viewModel.updateItem(item, text, note, url, fieldValues)
                 itemPendingEdit = null
             },
             onDelete = {
@@ -178,16 +200,28 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
             }
         )
     }
+
+    if (showFieldsManager) {
+        FieldsManagerDialog(
+            fields = fields,
+            onDismiss = { showFieldsManager = false },
+            onAddField = viewModel::addField,
+            onUpdateField = viewModel::updateField,
+            onDeleteField = viewModel::deleteField
+        )
+    }
 }
 
 @Composable
 private fun ItemRow(
     item: SimpleListItemEntity,
     showCheckbox: Boolean,
+    fieldChips: List<Pair<FieldDefinitionEntity, String>>,
     onToggleChecked: (Boolean) -> Unit,
     onClick: () -> Unit,
     dragHandle: @Composable () -> Modifier
 ) {
+    val context = LocalContext.current
     Card(
         onClick = onClick,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -229,6 +263,32 @@ private fun ItemRow(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+                if (!item.url.isNullOrBlank()) {
+                    Text(
+                        text = item.url,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        textDecoration = TextDecoration.Underline,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .padding(top = 2.dp)
+                            .clickable {
+                                runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url)))
+                                }
+                            }
+                    )
+                }
+                if (fieldChips.isNotEmpty()) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        fieldChips.forEach { (field, value) -> FieldValueChip(field = field, rawValue = value) }
+                    }
                 }
             }
             Icon(

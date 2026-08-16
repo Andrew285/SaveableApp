@@ -8,4 +8,10 @@ class Converters {
 
     @TypeConverter
     fun toPriority(value: Int): Priority = Priority.entries.getOrElse(value) { Priority.MEDIUM }
+
+    @TypeConverter
+    fun fromFieldType(type: FieldType): Int = type.ordinal
+
+    @TypeConverter
+    fun toFieldType(value: Int): FieldType = FieldType.entries.getOrElse(value) { FieldType.TEXT }
 }

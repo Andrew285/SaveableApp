@@ -5,14 +5,20 @@ import androidx.lifecycle.viewModelScope
 import com.rainyday.saveableapp.data.local.InfoCategoryEntity
 import com.rainyday.saveableapp.data.repository.InfoCategorySnapshot
 import com.rainyday.saveableapp.data.repository.InfoRepository
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class InfoCategoriesViewModel(private val repository: InfoRepository) : ViewModel() {
-    val categories: StateFlow<List<InfoCategoryEntity>> = repository.observeCategories()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // null while the first Room emission hasn't arrived yet, so the UI can tell "loading" apart from "empty".
+    private val _categories = MutableStateFlow<List<InfoCategoryEntity>?>(null)
+    val categories: StateFlow<List<InfoCategoryEntity>?> = _categories
+
+    init {
+        viewModelScope.launch {
+            repository.observeCategories().collect { _categories.value = it }
+        }
+    }
 
     fun createCategory(name: String, icon: String, colorHex: String) {
         viewModelScope.launch { repository.createCategory(name, icon, colorHex) }

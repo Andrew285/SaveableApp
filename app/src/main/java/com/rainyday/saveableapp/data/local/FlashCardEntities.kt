@@ -7,37 +7,40 @@ import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
 @Serializable
-@Entity(tableName = "simple_lists")
-data class SimpleListEntity(
+@Entity(tableName = "flashcard_decks")
+data class FlashCardDeckEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val icon: String,
     val colorHex: String,
-    val showCheckbox: Boolean = true,
     val position: Int = 0,
     val createdAt: Long
 )
 
 @Serializable
 @Entity(
-    tableName = "simple_list_items",
+    tableName = "flashcards",
     foreignKeys = [
         ForeignKey(
-            entity = SimpleListEntity::class,
+            entity = FlashCardDeckEntity::class,
             parentColumns = ["id"],
-            childColumns = ["listId"],
+            childColumns = ["deckId"],
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("listId")]
+    indices = [Index("deckId")]
 )
-data class SimpleListItemEntity(
+data class FlashCardEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val listId: Long,
-    val text: String,
-    val note: String? = null,
-    val url: String? = null,
-    val isChecked: Boolean = false,
+    val deckId: Long,
+    val front: String,
+    val back: String,
     val position: Int = 0,
-    val createdAt: Long
+    val createdAt: Long,
+    // Spaced-repetition scheduling state (simplified SM-2). New/never-reviewed cards default to
+    // dueAt = 0, i.e. already due, so they show up in a study session right away.
+    val intervalDays: Int = 0,
+    val easeFactor: Double = 2.5,
+    val repetitions: Int = 0,
+    val dueAt: Long = 0
 )

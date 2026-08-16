@@ -40,6 +40,14 @@ android {
         compose = true
         buildConfig = true
     }
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/INDEX.LIST",
+                "META-INF/DEPENDENCIES"
+            )
+        }
+    }
 }
 
 ksp {
@@ -66,6 +74,14 @@ dependencies {
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.reorderable)
+    implementation(libs.play.services.auth)
+    implementation(libs.google.api.client.android) {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    implementation(libs.google.api.services.drive) {
+        exclude(group = "org.apache.httpcomponents")
+    }
+    implementation(libs.google.http.client.gson)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

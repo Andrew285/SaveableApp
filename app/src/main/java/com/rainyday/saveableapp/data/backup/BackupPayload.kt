@@ -1,5 +1,9 @@
 package com.rainyday.saveableapp.data.backup
 
+import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
+import com.rainyday.saveableapp.data.local.FieldValueEntity
+import com.rainyday.saveableapp.data.local.FlashCardDeckEntity
+import com.rainyday.saveableapp.data.local.FlashCardEntity
 import com.rainyday.saveableapp.data.local.InfoBlockEntity
 import com.rainyday.saveableapp.data.local.InfoCategoryEntity
 import com.rainyday.saveableapp.data.local.SimpleListEntity
@@ -21,5 +25,9 @@ data class BackupPayload(
     val simpleLists: List<SimpleListEntity>,
     val simpleListItems: List<SimpleListItemEntity>,
     val infoCategories: List<InfoCategoryEntity>,
-    val infoBlocks: List<InfoBlockEntity>
+    val infoBlocks: List<InfoBlockEntity>,
+    val flashCardDecks: List<FlashCardDeckEntity> = emptyList(),
+    val flashCards: List<FlashCardEntity> = emptyList(),
+    val fieldDefinitions: List<FieldDefinitionEntity> = emptyList(),
+    val fieldValues: List<FieldValueEntity> = emptyList()
 )

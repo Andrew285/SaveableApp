@@ -22,13 +22,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.rainyday.saveableapp.data.local.FieldTemplate
 import com.rainyday.saveableapp.ui.theme.AccentColors
 
 data class EditListResult(
     val name: String,
     val icon: String,
     val colorHex: String,
-    val showCheckbox: Boolean
+    val showCheckbox: Boolean,
+    val fieldTemplates: List<FieldTemplate> = emptyList()
 )
 
 data class ListTemplateOption(
@@ -55,6 +57,7 @@ fun EditListDialog(
     var icon by remember { mutableStateOf(initialIcon) }
     var colorHex by remember { mutableStateOf(initialColorHex) }
     var showCheckbox by remember { mutableStateOf(initialShowCheckbox) }
+    var fieldTemplates by remember { mutableStateOf(emptyList<FieldTemplate>()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -74,6 +77,7 @@ fun EditListDialog(
                                     icon = template.result.icon
                                     colorHex = template.result.colorHex
                                     showCheckbox = template.result.showCheckbox
+                                    fieldTemplates = template.result.fieldTemplates
                                 },
                                 label = { Text(template.label) }
                             )
@@ -127,7 +131,7 @@ fun EditListDialog(
             TextButton(
                 enabled = name.isNotBlank(),
                 onClick = {
-                    onConfirm(EditListResult(name.trim(), icon, colorHex, showCheckbox))
+                    onConfirm(EditListResult(name.trim(), icon, colorHex, showCheckbox, fieldTemplates))
                 }
             ) {
                 Text(confirmLabel)

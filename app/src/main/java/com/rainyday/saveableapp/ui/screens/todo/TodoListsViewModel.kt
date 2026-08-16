@@ -5,14 +5,20 @@ import androidx.lifecycle.viewModelScope
 import com.rainyday.saveableapp.data.local.TodoListEntity
 import com.rainyday.saveableapp.data.repository.TodoListSnapshot
 import com.rainyday.saveableapp.data.repository.TodoRepository
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class TodoListsViewModel(private val repository: TodoRepository) : ViewModel() {
-    val lists: StateFlow<List<TodoListEntity>> = repository.observeLists()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // null while the first Room emission hasn't arrived yet, so the UI can tell "loading" apart from "empty".
+    private val _lists = MutableStateFlow<List<TodoListEntity>?>(null)
+    val lists: StateFlow<List<TodoListEntity>?> = _lists
+
+    init {
+        viewModelScope.launch {
+            repository.observeLists().collect { _lists.value = it }
+        }
+    }
 
     fun createList(name: String, icon: String, colorHex: String) {
         viewModelScope.launch { repository.createList(name, colorHex, icon) }

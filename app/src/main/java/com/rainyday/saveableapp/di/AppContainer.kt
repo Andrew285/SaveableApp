@@ -1,9 +1,11 @@
 package com.rainyday.saveableapp.di
 
 import android.content.Context
+import com.rainyday.saveableapp.data.drive.DriveBackupRepository
 import com.rainyday.saveableapp.data.local.AppDatabase
 import com.rainyday.saveableapp.data.prefs.PreferencesRepository
 import com.rainyday.saveableapp.data.repository.BackupRepository
+import com.rainyday.saveableapp.data.repository.FlashCardsRepository
 import com.rainyday.saveableapp.data.repository.InfoRepository
 import com.rainyday.saveableapp.data.repository.ListsRepository
 import com.rainyday.saveableapp.data.repository.TodoRepository
@@ -16,14 +18,27 @@ class AppContainer(context: Context) {
     }
 
     val listsRepository by lazy {
-        ListsRepository(database.simpleListDao(), database.simpleListItemDao())
+        ListsRepository(
+            database.simpleListDao(),
+            database.simpleListItemDao(),
+            database.fieldDefinitionDao(),
+            database.fieldValueDao()
+        )
     }
 
     val infoRepository by lazy {
         InfoRepository(database.infoCategoryDao(), database.infoBlockDao())
     }
 
+    val flashCardsRepository by lazy {
+        FlashCardsRepository(database.flashCardDeckDao(), database.flashCardDao())
+    }
+
     val preferencesRepository by lazy { PreferencesRepository(context.applicationContext) }
 
     val backupRepository by lazy { BackupRepository(database, database.backupDao()) }
+
+    val driveBackupRepository by lazy {
+        DriveBackupRepository(context.applicationContext, backupRepository, preferencesRepository)
+    }
 }

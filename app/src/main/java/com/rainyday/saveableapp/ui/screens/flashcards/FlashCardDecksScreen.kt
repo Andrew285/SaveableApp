@@ -1,4 +1,4 @@
-package com.rainyday.saveableapp.ui.screens.lists
+package com.rainyday.saveableapp.ui.screens.flashcards
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -6,10 +6,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,44 +31,38 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.rainyday.saveableapp.data.local.SimpleListEntity
+import com.rainyday.saveableapp.data.local.FlashCardDeckEntity
 import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.EditListDialog
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.IconCatalog
 import com.rainyday.saveableapp.ui.components.ListRow
-import com.rainyday.saveableapp.ui.components.ListTemplateOption
-import com.rainyday.saveableapp.ui.components.EditListResult
 import com.rainyday.saveableapp.ui.components.LoadingIndicator
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import kotlinx.coroutines.launch
 
-private val templateOptions = simpleListTemplates.map {
-    ListTemplateOption(it.label, EditListResult(it.name, it.icon, it.colorHex, it.showCheckbox, it.fields))
-}
-
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-fun SimpleListsScreen(
-    onOpenList: (Long) -> Unit,
+fun FlashCardDecksScreen(
+    onOpenDeck: (Long) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     val container = appContainer()
-    val viewModel: SimpleListsViewModel = viewModel(
-        factory = viewModelFactory { initializer { SimpleListsViewModel(container.listsRepository) } }
+    val viewModel: FlashCardDecksViewModel = viewModel(
+        factory = viewModelFactory { initializer { FlashCardDecksViewModel(container.flashCardsRepository) } }
     )
-    val lists by viewModel.lists.collectAsState()
+    val decks by viewModel.decks.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     var showCreateDialog by remember { mutableStateOf(false) }
-    var listPendingEdit by remember { mutableStateOf<SimpleListEntity?>(null) }
+    var deckPendingEdit by remember { mutableStateOf<FlashCardDeckEntity?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Lists") },
+                title = { Text("Flashcards") },
                 actions = {
                     IconButton(onClick = onOpenSearch) {
                         Icon(Icons.Filled.Search, contentDescription = "Search")
@@ -82,18 +76,18 @@ fun SimpleListsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "New list")
+                Icon(Icons.Filled.Add, contentDescription = "New deck")
             }
         }
     ) { padding ->
-        val currentLists = lists
+        val currentDecks = decks
         when {
-            currentLists == null -> LoadingIndicator(modifier = Modifier.padding(padding))
-            currentLists.isEmpty() -> EmptyState(
-                icon = Icons.AutoMirrored.Filled.MenuBook,
-                title = "No lists yet",
-                subtitle = "Movies to watch, books to read, favorite quotes — any simple list you want to keep.",
-                actionLabel = "New list",
+            currentDecks == null -> LoadingIndicator(modifier = Modifier.padding(padding))
+            currentDecks.isEmpty() -> EmptyState(
+                icon = Icons.Filled.Style,
+                title = "No decks yet",
+                subtitle = "Create a deck to start collecting flashcards for anything you want to memorize.",
+                actionLabel = "New deck",
                 onAction = { showCreateDialog = true },
                 modifier = Modifier.padding(padding)
             )
@@ -102,15 +96,17 @@ fun SimpleListsScreen(
                     contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, 96.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(currentLists, key = { it.list.id }) { entry ->
-                        val list = entry.list
+                    items(currentDecks, key = { it.deck.id }) { entry ->
+                        val deck = entry.deck
                         ListRow(
-                            title = list.name,
-                            subtitle = if (list.showCheckbox && entry.total > 0) "${entry.checked}/${entry.total}" else null,
-                            icon = IconCatalog.resolve(list.icon),
-                            accentHex = list.colorHex,
-                            onClick = { onOpenList(list.id) },
-                            onLongClick = { listPendingEdit = list }
+                            title = deck.name,
+                            subtitle = if (entry.cardCount > 0) {
+                                "${entry.cardCount} card${if (entry.cardCount == 1) "" else "s"}"
+                            } else null,
+                            icon = IconCatalog.resolve(deck.icon),
+                            accentHex = deck.colorHex,
+                            onClick = { onOpenDeck(deck.id) },
+                            onLongClick = { deckPendingEdit = deck }
                         )
                     }
                 }
@@ -120,40 +116,34 @@ fun SimpleListsScreen(
 
     if (showCreateDialog) {
         EditListDialog(
-            title = "New list",
+            title = "New deck",
             confirmLabel = "Create",
-            showCheckboxOption = true,
-            checkboxOptionLabel = "Items have a checkbox (e.g. watched, read)",
-            templates = templateOptions,
             onDismiss = { showCreateDialog = false },
             onConfirm = { result ->
-                viewModel.createList(result.name, result.icon, result.colorHex, result.showCheckbox, result.fieldTemplates)
+                viewModel.createDeck(result.name, result.icon, result.colorHex)
                 showCreateDialog = false
             }
         )
     }
 
-    listPendingEdit?.let { list ->
+    deckPendingEdit?.let { deck ->
         EditListDialog(
-            title = "Edit list",
-            initialName = list.name,
-            initialIcon = list.icon,
-            initialColorHex = list.colorHex,
-            showCheckboxOption = true,
-            initialShowCheckbox = list.showCheckbox,
-            checkboxOptionLabel = "Items have a checkbox (e.g. watched, read)",
-            onDismiss = { listPendingEdit = null },
+            title = "Edit deck",
+            initialName = deck.name,
+            initialIcon = deck.icon,
+            initialColorHex = deck.colorHex,
+            onDismiss = { deckPendingEdit = null },
             onConfirm = { result ->
-                viewModel.updateList(list, result.name, result.icon, result.colorHex, result.showCheckbox)
-                listPendingEdit = null
+                viewModel.updateDeck(deck, result.name, result.icon, result.colorHex)
+                deckPendingEdit = null
             },
             onDelete = {
-                listPendingEdit = null
+                deckPendingEdit = null
                 scope.launch {
                     snackbarHostState.showUndoableDelete(
-                        message = "Deleted \"${list.name}\"",
-                        delete = { viewModel.deleteListWithUndo(list) },
-                        restore = { viewModel.restoreList(it) }
+                        message = "Deleted \"${deck.name}\"",
+                        delete = { viewModel.deleteDeckWithUndo(deck) },
+                        restore = { viewModel.restoreDeck(it) }
                     )
                 }
             }

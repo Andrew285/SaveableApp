@@ -31,6 +31,18 @@ interface BackupDao {
     @Query("SELECT * FROM info_blocks")
     suspend fun getAllInfoBlocks(): List<InfoBlockEntity>
 
+    @Query("SELECT * FROM flashcard_decks")
+    suspend fun getAllFlashCardDecks(): List<FlashCardDeckEntity>
+
+    @Query("SELECT * FROM flashcards")
+    suspend fun getAllFlashCards(): List<FlashCardEntity>
+
+    @Query("SELECT * FROM list_field_definitions")
+    suspend fun getAllFieldDefinitions(): List<FieldDefinitionEntity>
+
+    @Query("SELECT * FROM list_item_field_values")
+    suspend fun getAllFieldValues(): List<FieldValueEntity>
+
     @Query("DELETE FROM task_tag_cross_ref")
     suspend fun clearTaskTagCrossRefs()
 
@@ -55,6 +67,18 @@ interface BackupDao {
     @Query("DELETE FROM info_categories")
     suspend fun clearInfoCategories()
 
+    @Query("DELETE FROM flashcards")
+    suspend fun clearFlashCards()
+
+    @Query("DELETE FROM flashcard_decks")
+    suspend fun clearFlashCardDecks()
+
+    @Query("DELETE FROM list_item_field_values")
+    suspend fun clearFieldValues()
+
+    @Query("DELETE FROM list_field_definitions")
+    suspend fun clearFieldDefinitions()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTodoLists(items: List<TodoListEntity>)
 
@@ -78,4 +102,16 @@ interface BackupDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertInfoBlocks(items: List<InfoBlockEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFlashCardDecks(items: List<FlashCardDeckEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFlashCards(items: List<FlashCardEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFieldDefinitions(items: List<FieldDefinitionEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFieldValues(items: List<FieldValueEntity>)
 }

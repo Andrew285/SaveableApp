@@ -37,6 +37,7 @@ import com.rainyday.saveableapp.ui.components.EditListDialog
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.IconCatalog
 import com.rainyday.saveableapp.ui.components.ListRow
+import com.rainyday.saveableapp.ui.components.LoadingIndicator
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import kotlinx.coroutines.launch
 
@@ -79,8 +80,10 @@ fun InfoCategoriesScreen(
             }
         }
     ) { padding ->
-        if (categories.isEmpty()) {
-            EmptyState(
+        val currentCategories = categories
+        when {
+            currentCategories == null -> LoadingIndicator(modifier = Modifier.padding(padding))
+            currentCategories.isEmpty() -> EmptyState(
                 icon = Icons.Filled.Badge,
                 title = "No categories yet",
                 subtitle = "Keep sizes, IDs, and important details organized and available at a glance.",
@@ -88,20 +91,21 @@ fun InfoCategoriesScreen(
                 onAction = { showCreateDialog = true },
                 modifier = Modifier.padding(padding)
             )
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, 96.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(categories, key = { it.id }) { category ->
-                    ListRow(
-                        title = category.name,
-                        subtitle = null,
-                        icon = IconCatalog.resolve(category.icon),
-                        accentHex = category.colorHex,
-                        onClick = { onOpenCategory(category.id) },
-                        onLongClick = { categoryPendingEdit = category }
-                    )
+            else -> {
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(currentCategories, key = { it.id }) { category ->
+                        ListRow(
+                            title = category.name,
+                            subtitle = null,
+                            icon = IconCatalog.resolve(category.icon),
+                            accentHex = category.colorHex,
+                            onClick = { onOpenCategory(category.id) },
+                            onLongClick = { categoryPendingEdit = category }
+                        )
+                    }
                 }
             }
         }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -19,6 +20,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.rainyday.saveableapp.ui.screens.flashcards.FlashCardDeckDetailScreen
+import com.rainyday.saveableapp.ui.screens.flashcards.FlashCardDecksScreen
+import com.rainyday.saveableapp.ui.screens.flashcards.FlashCardStudyScreen
 import com.rainyday.saveableapp.ui.screens.info.InfoCategoriesScreen
 import com.rainyday.saveableapp.ui.screens.info.InfoCategoryDetailScreen
 import com.rainyday.saveableapp.ui.screens.lists.SimpleListDetailScreen
@@ -33,6 +37,7 @@ private data class BottomTab(val screen: Screen, val label: String, val icon: an
 private val bottomTabs = listOf(
     BottomTab(Screen.TodoLists, "To-Do", Icons.Filled.Checklist),
     BottomTab(Screen.SimpleLists, "Lists", Icons.AutoMirrored.Filled.MenuBook),
+    BottomTab(Screen.FlashCardDecks, "Cards", Icons.Filled.Style),
     BottomTab(Screen.InfoCategories, "Info", Icons.Filled.Badge)
 )
 
@@ -94,6 +99,25 @@ fun AppNavHost() {
             composable<Screen.SimpleListDetail> { entry ->
                 val args = entry.toRoute<Screen.SimpleListDetail>()
                 SimpleListDetailScreen(listId = args.listId, onBack = { navController.popBackStack() })
+            }
+            composable<Screen.FlashCardDecks> {
+                FlashCardDecksScreen(
+                    onOpenDeck = { navController.navigate(Screen.FlashCardDeckDetail(it)) },
+                    onOpenSearch = { navController.navigate(Screen.Search) },
+                    onOpenSettings = { navController.navigate(Screen.Settings) }
+                )
+            }
+            composable<Screen.FlashCardDeckDetail> { entry ->
+                val args = entry.toRoute<Screen.FlashCardDeckDetail>()
+                FlashCardDeckDetailScreen(
+                    deckId = args.deckId,
+                    onBack = { navController.popBackStack() },
+                    onStudy = { navController.navigate(Screen.FlashCardStudy(args.deckId)) }
+                )
+            }
+            composable<Screen.FlashCardStudy> { entry ->
+                val args = entry.toRoute<Screen.FlashCardStudy>()
+                FlashCardStudyScreen(deckId = args.deckId, onBack = { navController.popBackStack() })
             }
             composable<Screen.InfoCategories> {
                 InfoCategoriesScreen(
