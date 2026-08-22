@@ -20,6 +20,8 @@ class FlashCardsRepository(
 
     fun observeCounts(): Flow<List<DeckCardCount>> = cardDao.observeCounts()
 
+    fun observeDueCounts(now: Long = System.currentTimeMillis()): Flow<List<DeckCardCount>> = cardDao.observeDueCounts(now)
+
     suspend fun createDeck(name: String, icon: String, colorHex: String): Long =
         deckDao.insert(
             FlashCardDeckEntity(

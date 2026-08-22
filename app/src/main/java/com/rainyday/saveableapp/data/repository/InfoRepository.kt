@@ -15,6 +15,8 @@ class InfoRepository(
 ) {
     fun observeCategories(): Flow<List<InfoCategoryEntity>> = categoryDao.observeCategories()
 
+    fun observeCategoryCounts(): Flow<List<com.rainyday.saveableapp.data.local.InfoCategoryCount>> = blockDao.observeCounts()
+
     fun observeCategory(categoryId: Long): Flow<InfoCategoryEntity?> = categoryDao.observeById(categoryId)
 
     suspend fun createCategory(name: String, icon: String, colorHex: String): Long =

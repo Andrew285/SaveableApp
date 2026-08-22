@@ -17,6 +17,9 @@ interface FlashCardDao {
     @Query("SELECT deckId, COUNT(*) as count FROM flashcards GROUP BY deckId")
     fun observeCounts(): Flow<List<DeckCardCount>>
 
+    @Query("SELECT deckId, COUNT(*) as count FROM flashcards WHERE dueAt <= :now GROUP BY deckId")
+    fun observeDueCounts(now: Long): Flow<List<DeckCardCount>>
+
     @Query("SELECT * FROM flashcards WHERE deckId = :deckId AND dueAt <= :now ORDER BY dueAt ASC")
     suspend fun getDueCards(deckId: Long, now: Long): List<FlashCardEntity>
 

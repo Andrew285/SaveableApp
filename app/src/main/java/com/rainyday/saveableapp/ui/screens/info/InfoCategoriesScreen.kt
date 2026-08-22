@@ -1,24 +1,20 @@
 package com.rainyday.saveableapp.ui.screens.info
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,20 +29,20 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.rainyday.saveableapp.data.local.InfoCategoryEntity
 import com.rainyday.saveableapp.ui.appContainer
+import com.rainyday.saveableapp.ui.components.DirectoryCard
 import com.rainyday.saveableapp.ui.components.EditListDialog
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.IconCatalog
-import com.rainyday.saveableapp.ui.components.ListRow
 import com.rainyday.saveableapp.ui.components.LoadingIndicator
+import com.rainyday.saveableapp.ui.components.PillButtonPrimary
+import com.rainyday.saveableapp.ui.components.ScreenHeader
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import kotlinx.coroutines.launch
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun InfoCategoriesScreen(
     onOpenCategory: (Long) -> Unit,
-    onOpenSearch: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSearch: () -> Unit
 ) {
     val container = appContainer()
     val viewModel: InfoCategoriesViewModel = viewModel(
@@ -59,53 +55,55 @@ fun InfoCategoriesScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var categoryPendingEdit by remember { mutableStateOf<InfoCategoryEntity?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Info") },
-                actions = {
-                    IconButton(onClick = onOpenSearch) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search")
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } }) { padding ->
+        Column(modifier = Modifier.padding(padding)) {
+            val currentCategories = categories
+            when {
+                currentCategories == null -> LoadingIndicator(modifier = Modifier.weight(1f))
+                currentCategories.isEmpty() -> EmptyState(
+                    icon = Icons.Filled.Badge,
+                    title = "No categories yet",
+                    subtitle = "Keep sizes, IDs, and important details organized and available at a glance.",
+                    actionLabel = "New category",
+                    onAction = { showCreateDialog = true },
+                    modifier = Modifier.weight(1f)
+                )
+                else -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item(span = { GridItemSpan(2) }) {
+                            ScreenHeader(
+                                eyebrow = "// VAULT",
+                                title = "The Vault",
+                                subtitle = "Locked away, always at hand",
+                                onActionClick = onOpenSearch,
+                                modifier = Modifier.padding(horizontal = 0.dp)
+                            )
+                        }
+                        items(currentCategories, key = { it.category.id }) { entry ->
+                            val category = entry.category
+                            DirectoryCard(
+                                title = category.name,
+                                itemCount = entry.itemCount,
+                                icon = IconCatalog.resolve(category.icon),
+                                accentHex = category.colorHex,
+                                onClick = { onOpenCategory(category.id) },
+                                onLongClick = { categoryPendingEdit = category }
+                            )
+                        }
                     }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
-                    }
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showCreateDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "New category")
-            }
-        }
-    ) { padding ->
-        val currentCategories = categories
-        when {
-            currentCategories == null -> LoadingIndicator(modifier = Modifier.padding(padding))
-            currentCategories.isEmpty() -> EmptyState(
-                icon = Icons.Filled.Badge,
-                title = "No categories yet",
-                subtitle = "Keep sizes, IDs, and important details organized and available at a glance.",
-                actionLabel = "New category",
-                onAction = { showCreateDialog = true },
-                modifier = Modifier.padding(padding)
-            )
-            else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, 96.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(currentCategories, key = { it.id }) { category ->
-                        ListRow(
-                            title = category.name,
-                            subtitle = null,
-                            icon = IconCatalog.resolve(category.icon),
-                            accentHex = category.colorHex,
-                            onClick = { onOpenCategory(category.id) },
-                            onLongClick = { categoryPendingEdit = category }
-                        )
-                    }
+                    PillButtonPrimary(
+                        text = "+ New Category",
+                        onClick = { showCreateDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                    )
                 }
             }
         }

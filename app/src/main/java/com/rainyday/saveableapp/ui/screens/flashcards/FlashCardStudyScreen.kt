@@ -1,7 +1,7 @@
 package com.rainyday.saveableapp.ui.screens.flashcards
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,22 +12,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,21 +33,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.rainyday.saveableapp.data.repository.CardRating
-import com.rainyday.saveableapp.data.repository.SpacedRepetition
 import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.LoadingIndicator
-import com.rainyday.saveableapp.ui.components.parseHexColor
-import kotlin.math.roundToInt
+import com.rainyday.saveableapp.ui.theme.EyebrowTextStyle
+import com.rainyday.saveableapp.ui.theme.PillShape
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FlashCardStudyScreen(deckId: Long, onBack: () -> Unit) {
     val container = appContainer()
@@ -65,18 +60,7 @@ fun FlashCardStudyScreen(deckId: Long, onBack: () -> Unit) {
     val currentQueue = queue
     val currentCard = currentQueue?.getOrNull(index)
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(deck?.name?.let { "Study: $it" } ?: "Study") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    Scaffold { padding ->
         when {
             currentQueue == null -> LoadingIndicator(modifier = Modifier.padding(padding))
             currentCard == null -> StudyCompleteState(
@@ -92,17 +76,46 @@ fun FlashCardStudyScreen(deckId: Long, onBack: () -> Unit) {
                 modifier = Modifier
                     .padding(padding)
                     .fillMaxSize()
-                    .padding(20.dp)
+                    .padding(horizontal = 20.dp)
             ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable(onClick = onBack)
+                    ) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Exit study",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "Exit Study",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 6.dp)
+                        )
+                    }
+                    Text(
+                        text = "$index / ${currentQueue.size} reviewed",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.End
+                    )
+                }
                 LinearProgressIndicator(
                     progress = { index.toFloat() / currentQueue.size },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Text(
-                    text = "${index + 1} of ${currentQueue.size}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp)
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(CircleShape)
                 )
 
                 Box(
@@ -113,54 +126,71 @@ fun FlashCardStudyScreen(deckId: Long, onBack: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     StudyCard(
+                        eyebrow = deck?.name.orEmpty(),
                         front = currentCard.front,
                         back = currentCard.back,
                         revealed = revealed,
-                        onClick = { revealed = !revealed }
+                        onClick = { revealed = true }
                     )
                 }
 
                 if (revealed) {
+                    Text(
+                        text = "RATE RETRIEVAL DIFFICULTY:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 10.dp),
+                        textAlign = TextAlign.Center
+                    )
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp)
                     ) {
                         RatingButton(
-                            label = "Hard",
-                            intervalLabel = formatInterval(SpacedRepetition.schedule(currentCard, CardRating.HARD).intervalDays),
-                            containerColor = MaterialTheme.colorScheme.error,
-                            onClick = {
-                                viewModel.rate(currentCard, CardRating.HARD)
-                                revealed = false
-                            },
+                            label = "Again",
+                            intervalLabel = "<1m",
+                            accent = MaterialTheme.colorScheme.error,
+                            onClick = { viewModel.rate(currentCard, CardRating.AGAIN); revealed = false },
                             modifier = Modifier.weight(1f)
                         )
                         RatingButton(
-                            label = "Medium",
-                            intervalLabel = formatInterval(SpacedRepetition.schedule(currentCard, CardRating.MEDIUM).intervalDays),
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            onClick = {
-                                viewModel.rate(currentCard, CardRating.MEDIUM)
-                                revealed = false
-                            },
+                            label = "Hard",
+                            intervalLabel = "12h",
+                            accent = com.rainyday.saveableapp.ui.theme.PriorityColors.high,
+                            onClick = { viewModel.rate(currentCard, CardRating.HARD); revealed = false },
+                            modifier = Modifier.weight(1f)
+                        )
+                        RatingButton(
+                            label = "Good",
+                            intervalLabel = "4d",
+                            accent = MaterialTheme.colorScheme.primary,
+                            onClick = { viewModel.rate(currentCard, CardRating.GOOD); revealed = false },
                             modifier = Modifier.weight(1f)
                         )
                         RatingButton(
                             label = "Easy",
-                            intervalLabel = formatInterval(SpacedRepetition.schedule(currentCard, CardRating.EASY).intervalDays),
-                            containerColor = parseHexColor("#6FB668"),
-                            onClick = {
-                                viewModel.rate(currentCard, CardRating.EASY)
-                                revealed = false
-                            },
+                            intervalLabel = "8d",
+                            accent = com.rainyday.saveableapp.ui.theme.PriorityColors.medium,
+                            onClick = { viewModel.rate(currentCard, CardRating.EASY); revealed = false },
                             modifier = Modifier.weight(1f)
                         )
                     }
                 } else {
-                    Button(
-                        onClick = { revealed = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("Show Answer") }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        TextButton(onClick = { revealed = true }) {
+                            Icon(Icons.Filled.VisibilityOff, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Text(" Tap to flip hint", modifier = Modifier.padding(start = 4.dp))
+                        }
+                    }
                 }
             }
         }
@@ -171,13 +201,15 @@ fun FlashCardStudyScreen(deckId: Long, onBack: () -> Unit) {
 private fun RatingButton(
     label: String,
     intervalLabel: String,
-    containerColor: Color,
+    accent: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Button(
+    androidx.compose.material3.OutlinedButton(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = containerColor),
+        shape = PillShape,
+        border = androidx.compose.foundation.BorderStroke(1.dp, accent),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = accent),
         contentPadding = PaddingValues(vertical = 10.dp),
         modifier = modifier
     ) {
@@ -188,51 +220,33 @@ private fun RatingButton(
     }
 }
 
-/** Compact "next review in" label, e.g. 1d, 6d, 2mo, 1y. */
-private fun formatInterval(days: Int): String = when {
-    days <= 1 -> "1d"
-    days < 30 -> "${days}d"
-    days < 365 -> "${(days / 30f).roundToInt().coerceAtLeast(1)}mo"
-    else -> "${(days / 365f).roundToInt().coerceAtLeast(1)}y"
-}
-
 @Composable
-private fun StudyCard(front: String, back: String, revealed: Boolean, onClick: () -> Unit) {
-    val rotation by animateFloatAsState(
-        targetValue = if (revealed) 180f else 0f,
-        animationSpec = tween(350),
-        label = "study-flip"
-    )
-
-    Card(
-        onClick = onClick,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+private fun StudyCard(eyebrow: String, front: String, back: String, revealed: Boolean, onClick: () -> Unit) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1.4f)
+            .aspectRatio(1.15f)
+            .clip(MaterialTheme.shapes.large)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
-                .graphicsLayer {
-                    rotationY = rotation
-                    cameraDistance = 12f * density
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            if (rotation <= 90f) {
-                Text(text = front, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-            } else {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            if (eyebrow.isNotBlank()) {
                 Text(
-                    text = back,
-                    style = MaterialTheme.typography.headlineSmall,
-                    textAlign = TextAlign.Center,
+                    text = "// ${eyebrow.uppercase()}",
+                    style = EyebrowTextStyle,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.graphicsLayer { rotationY = 180f }
+                    modifier = Modifier.padding(bottom = 20.dp)
                 )
             }
+            Text(
+                text = if (revealed) back else front,
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+                color = if (revealed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }
@@ -281,4 +295,3 @@ private fun StudyCompleteState(
         }
     }
 }
-

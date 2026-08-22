@@ -55,6 +55,8 @@ class TodoRepository(
 
     fun observeAllTasks(): Flow<List<TaskWithTags>> = taskDao.observeAllTasks()
 
+    fun observeAllArchivedTasks(): Flow<List<TaskWithTags>> = taskDao.observeAllArchivedTasks()
+
     fun searchTasks(query: String): Flow<List<TaskWithTags>> = taskDao.search(query)
 
     suspend fun createTask(
@@ -104,6 +106,8 @@ class TodoRepository(
     }
 
     suspend fun archiveCompleted(listId: Long) = taskDao.archiveCompletedForList(listId)
+
+    suspend fun archiveAllCompleted() = taskDao.archiveAllCompleted()
 
     suspend fun unarchiveTask(task: TodoTaskEntity) = taskDao.update(task.copy(isArchived = false))
 

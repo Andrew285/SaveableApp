@@ -1,24 +1,19 @@
 package com.rainyday.saveableapp.ui.screens.lists
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,13 +28,15 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.rainyday.saveableapp.data.local.SimpleListEntity
 import com.rainyday.saveableapp.ui.appContainer
+import com.rainyday.saveableapp.ui.components.DirectoryCard
 import com.rainyday.saveableapp.ui.components.EditListDialog
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.IconCatalog
-import com.rainyday.saveableapp.ui.components.ListRow
 import com.rainyday.saveableapp.ui.components.ListTemplateOption
 import com.rainyday.saveableapp.ui.components.EditListResult
 import com.rainyday.saveableapp.ui.components.LoadingIndicator
+import com.rainyday.saveableapp.ui.components.PillButtonPrimary
+import com.rainyday.saveableapp.ui.components.ScreenHeader
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import kotlinx.coroutines.launch
 
@@ -47,12 +44,10 @@ private val templateOptions = simpleListTemplates.map {
     ListTemplateOption(it.label, EditListResult(it.name, it.icon, it.colorHex, it.showCheckbox, it.fields))
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun SimpleListsScreen(
     onOpenList: (Long) -> Unit,
-    onOpenSearch: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSearch: () -> Unit
 ) {
     val container = appContainer()
     val viewModel: SimpleListsViewModel = viewModel(
@@ -65,54 +60,55 @@ fun SimpleListsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var listPendingEdit by remember { mutableStateOf<SimpleListEntity?>(null) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Lists") },
-                actions = {
-                    IconButton(onClick = onOpenSearch) {
-                        Icon(Icons.Filled.Search, contentDescription = "Search")
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } }) { padding ->
+        Column(modifier = Modifier.padding(padding)) {
+            val currentLists = lists
+            when {
+                currentLists == null -> LoadingIndicator(modifier = Modifier.weight(1f))
+                currentLists.isEmpty() -> EmptyState(
+                    icon = Icons.AutoMirrored.Filled.MenuBook,
+                    title = "No lists yet",
+                    subtitle = "Movies to watch, books to read, favorite quotes — any simple list you want to keep.",
+                    actionLabel = "New list",
+                    onAction = { showCreateDialog = true },
+                    modifier = Modifier.weight(1f)
+                )
+                else -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
+                            ScreenHeader(
+                                eyebrow = "// LISTS",
+                                title = "Your Lists",
+                                subtitle = "Structured collections",
+                                onActionClick = onOpenSearch,
+                                modifier = Modifier.padding(horizontal = 0.dp)
+                            )
+                        }
+                        items(currentLists, key = { it.list.id }) { entry ->
+                            val list = entry.list
+                            DirectoryCard(
+                                title = list.name,
+                                itemCount = entry.total,
+                                icon = IconCatalog.resolve(list.icon),
+                                accentHex = list.colorHex,
+                                onClick = { onOpenList(list.id) },
+                                onLongClick = { listPendingEdit = list }
+                            )
+                        }
                     }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
-                    }
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showCreateDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "New list")
-            }
-        }
-    ) { padding ->
-        val currentLists = lists
-        when {
-            currentLists == null -> LoadingIndicator(modifier = Modifier.padding(padding))
-            currentLists.isEmpty() -> EmptyState(
-                icon = Icons.AutoMirrored.Filled.MenuBook,
-                title = "No lists yet",
-                subtitle = "Movies to watch, books to read, favorite quotes — any simple list you want to keep.",
-                actionLabel = "New list",
-                onAction = { showCreateDialog = true },
-                modifier = Modifier.padding(padding)
-            )
-            else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, 96.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(currentLists, key = { it.list.id }) { entry ->
-                        val list = entry.list
-                        ListRow(
-                            title = list.name,
-                            subtitle = if (list.showCheckbox && entry.total > 0) "${entry.checked}/${entry.total}" else null,
-                            icon = IconCatalog.resolve(list.icon),
-                            accentHex = list.colorHex,
-                            onClick = { onOpenList(list.id) },
-                            onLongClick = { listPendingEdit = list }
-                        )
-                    }
+                    PillButtonPrimary(
+                        text = "+ New List",
+                        onClick = { showCreateDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                    )
                 }
             }
         }

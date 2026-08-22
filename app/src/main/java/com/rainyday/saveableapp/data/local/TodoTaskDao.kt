@@ -23,6 +23,10 @@ interface TodoTaskDao {
     fun observeAllTasks(): Flow<List<TaskWithTags>>
 
     @Transaction
+    @Query("SELECT * FROM todo_tasks WHERE isArchived = 1 ORDER BY completedAt DESC")
+    fun observeAllArchivedTasks(): Flow<List<TaskWithTags>>
+
+    @Transaction
     @Query(
         "SELECT * FROM todo_tasks WHERE isArchived = 0 AND (title LIKE '%' || :query || '%' " +
             "OR notes LIKE '%' || :query || '%') ORDER BY createdAt DESC"
@@ -43,4 +47,7 @@ interface TodoTaskDao {
 
     @Query("UPDATE todo_tasks SET isArchived = 1 WHERE listId = :listId AND isDone = 1")
     suspend fun archiveCompletedForList(listId: Long)
+
+    @Query("UPDATE todo_tasks SET isArchived = 1 WHERE isDone = 1")
+    suspend fun archiveAllCompleted()
 }

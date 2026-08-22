@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
-data class FlashCardDeckUiModel(val deck: FlashCardDeckEntity, val cardCount: Int)
+data class FlashCardDeckUiModel(val deck: FlashCardDeckEntity, val cardCount: Int, val dueCount: Int)
 
 class FlashCardDecksViewModel(private val repository: FlashCardsRepository) : ViewModel() {
     // null while the first Room emission hasn't arrived yet, so the UI can tell "loading" apart from "empty".
@@ -19,9 +19,16 @@ class FlashCardDecksViewModel(private val repository: FlashCardsRepository) : Vi
 
     init {
         viewModelScope.launch {
-            combine(repository.observeDecks(), repository.observeCounts()) { decks, counts ->
+            combine(repository.observeDecks(), repository.observeCounts(), repository.observeDueCounts()) { decks, counts, dueCounts ->
                 val countsByDeck = counts.associateBy { it.deckId }
-                decks.map { deck -> FlashCardDeckUiModel(deck, countsByDeck[deck.id]?.count ?: 0) }
+                val dueByDeck = dueCounts.associateBy { it.deckId }
+                decks.map { deck ->
+                    FlashCardDeckUiModel(
+                        deck,
+                        cardCount = countsByDeck[deck.id]?.count ?: 0,
+                        dueCount = dueByDeck[deck.id]?.count ?: 0
+                    )
+                }
             }.collect { _decks.value = it }
         }
     }

@@ -1,6 +1,7 @@
 package com.rainyday.saveableapp.ui.screens.info
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,8 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.EventBusy
@@ -30,7 +31,6 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,7 +41,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -51,7 +53,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.rainyday.saveableapp.data.local.InfoBlockEntity
 import com.rainyday.saveableapp.ui.appContainer
+import com.rainyday.saveableapp.ui.components.DetailHeader
 import com.rainyday.saveableapp.ui.components.EmptyState
+import com.rainyday.saveableapp.ui.components.IconCatalog
 import com.rainyday.saveableapp.ui.components.parseHexColor
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import com.rainyday.saveableapp.ui.screens.todo.formatDate
@@ -94,16 +98,6 @@ fun InfoCategoryDetailScreen(categoryId: Long, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(category?.name ?: "Info") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         floatingActionButton = {
             androidx.compose.material3.FloatingActionButton(onClick = { showAddDialog = true }) {
@@ -111,6 +105,14 @@ fun InfoCategoryDetailScreen(categoryId: Long, onBack: () -> Unit) {
             }
         }
     ) { padding ->
+        Column(modifier = Modifier.padding(padding)) {
+            DetailHeader(onBack = onBack, backLabel = "Vault")
+            Text(
+                text = category?.name ?: "Vault",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
         if (blocks.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.Lock,
@@ -118,12 +120,12 @@ fun InfoCategoryDetailScreen(categoryId: Long, onBack: () -> Unit) {
                 subtitle = "Add sizes, IDs, or any detail you want available at a glance.",
                 actionLabel = "New entry",
                 onAction = { showAddDialog = true },
-                modifier = Modifier.padding(padding)
+                modifier = Modifier.weight(1f)
             )
         } else {
             val expiringSoonCount = blocks.count { it.expiryDate != null && isExpiringSoon(it.expiryDate) }
             LazyColumn(
-                contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, 96.dp),
+                contentPadding = PaddingValues(20.dp, 8.dp, 20.dp, 96.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (expiringSoonCount > 0) {
@@ -149,12 +151,15 @@ fun InfoCategoryDetailScreen(categoryId: Long, onBack: () -> Unit) {
                 items(blocks, key = { it.id }) { block ->
                     InfoBlockRow(
                         block = block,
+                        icon = IconCatalog.resolve(category?.icon ?: IconCatalog.defaultKey),
+                        accentHex = category?.colorHex ?: "#2EE6A8",
                         onClick = { blockPendingEdit = block },
                         onToggleFavorite = { viewModel.setFavorite(block, !block.isFavorite) },
                         onCopy = { clipboard.copyText(block.content) }
                     )
                 }
             }
+        }
         }
     }
 
@@ -198,22 +203,12 @@ fun InfoCategoryDetailScreen(categoryId: Long, onBack: () -> Unit) {
 
 private fun ClipboardManager.copyText(text: String) = setText(AnnotatedString(text))
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LockedGate(categoryName: String, onUnlocked: () -> Unit, onBack: () -> Unit) {
     val container = appContainer()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(categoryName) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
+        topBar = { DetailHeader(onBack = onBack, backLabel = "Vault") }
     ) { padding ->
         LockGateContent(
             title = "Locked",
@@ -228,16 +223,19 @@ private fun LockedGate(categoryName: String, onUnlocked: () -> Unit, onBack: () 
 @Composable
 private fun InfoBlockRow(
     block: InfoBlockEntity,
+    icon: ImageVector,
+    accentHex: String,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     onCopy: () -> Unit
 ) {
     var revealed by remember(block.id) { mutableStateOf(!block.isSensitive) }
+    val accent = parseHexColor(accentHex)
 
     Card(
         onClick = onClick,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -246,7 +244,18 @@ private fun InfoBlockRow(
                 .padding(vertical = 8.dp, horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(accent.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(imageVector = icon, contentDescription = null, tint = accent, modifier = Modifier.size(18.dp))
+            }
+            Column(modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)) {
                 Text(text = block.title, style = MaterialTheme.typography.labelLarge)
                 Text(
                     text = if (revealed) block.content else "•".repeat(block.content.length.coerceIn(4, 12)),

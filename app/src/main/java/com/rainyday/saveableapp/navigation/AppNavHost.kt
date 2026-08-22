@@ -2,18 +2,22 @@ package com.rainyday.saveableapp.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Style
-import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -29,16 +33,16 @@ import com.rainyday.saveableapp.ui.screens.lists.SimpleListDetailScreen
 import com.rainyday.saveableapp.ui.screens.lists.SimpleListsScreen
 import com.rainyday.saveableapp.ui.screens.search.SearchScreen
 import com.rainyday.saveableapp.ui.screens.settings.SettingsScreen
-import com.rainyday.saveableapp.ui.screens.todo.TodoListDetailScreen
-import com.rainyday.saveableapp.ui.screens.todo.TodoListsScreen
+import com.rainyday.saveableapp.ui.screens.todo.TasksScreen
 
 private data class BottomTab(val screen: Screen, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
 private val bottomTabs = listOf(
-    BottomTab(Screen.TodoLists, "To-Do", Icons.Filled.Checklist),
-    BottomTab(Screen.SimpleLists, "Lists", Icons.AutoMirrored.Filled.MenuBook),
+    BottomTab(Screen.Tasks, "Tasks", Icons.Filled.Checklist),
+    BottomTab(Screen.SimpleLists, "Lists", Icons.Filled.Folder),
     BottomTab(Screen.FlashCardDecks, "Cards", Icons.Filled.Style),
-    BottomTab(Screen.InfoCategories, "Info", Icons.Filled.Badge)
+    BottomTab(Screen.InfoCategories, "Vault", Icons.Filled.Lock),
+    BottomTab(Screen.Settings, "Settings", Icons.Filled.Tune)
 )
 
 @Composable
@@ -53,7 +57,7 @@ fun AppNavHost() {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
                     bottomTabs.forEach { tab ->
                         val selected = tab.screen::class.qualifiedName == currentRoute
                         NavigationBarItem(
@@ -66,7 +70,14 @@ fun AppNavHost() {
                                 }
                             },
                             icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) }
+                            label = { Text(tab.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                indicatorColor = Color.Transparent
+                            )
                         )
                     }
                 }
@@ -75,25 +86,16 @@ fun AppNavHost() {
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.TodoLists,
+            startDestination = Screen.Tasks,
             modifier = Modifier.padding(padding)
         ) {
-            composable<Screen.TodoLists> {
-                TodoListsScreen(
-                    onOpenList = { navController.navigate(Screen.TodoListDetail(it)) },
-                    onOpenSearch = { navController.navigate(Screen.Search) },
-                    onOpenSettings = { navController.navigate(Screen.Settings) }
-                )
-            }
-            composable<Screen.TodoListDetail> { entry ->
-                val args = entry.toRoute<Screen.TodoListDetail>()
-                TodoListDetailScreen(listId = args.listId, onBack = { navController.popBackStack() })
+            composable<Screen.Tasks> {
+                TasksScreen(onOpenSearch = { navController.navigate(Screen.Search) })
             }
             composable<Screen.SimpleLists> {
                 SimpleListsScreen(
                     onOpenList = { navController.navigate(Screen.SimpleListDetail(it)) },
-                    onOpenSearch = { navController.navigate(Screen.Search) },
-                    onOpenSettings = { navController.navigate(Screen.Settings) }
+                    onOpenSearch = { navController.navigate(Screen.Search) }
                 )
             }
             composable<Screen.SimpleListDetail> { entry ->
@@ -103,8 +105,7 @@ fun AppNavHost() {
             composable<Screen.FlashCardDecks> {
                 FlashCardDecksScreen(
                     onOpenDeck = { navController.navigate(Screen.FlashCardDeckDetail(it)) },
-                    onOpenSearch = { navController.navigate(Screen.Search) },
-                    onOpenSettings = { navController.navigate(Screen.Settings) }
+                    onOpenSearch = { navController.navigate(Screen.Search) }
                 )
             }
             composable<Screen.FlashCardDeckDetail> { entry ->
@@ -122,8 +123,7 @@ fun AppNavHost() {
             composable<Screen.InfoCategories> {
                 InfoCategoriesScreen(
                     onOpenCategory = { navController.navigate(Screen.InfoCategoryDetail(it)) },
-                    onOpenSearch = { navController.navigate(Screen.Search) },
-                    onOpenSettings = { navController.navigate(Screen.Settings) }
+                    onOpenSearch = { navController.navigate(Screen.Search) }
                 )
             }
             composable<Screen.InfoCategoryDetail> { entry ->
@@ -133,12 +133,17 @@ fun AppNavHost() {
             composable<Screen.Search> {
                 SearchScreen(
                     onBack = { navController.popBackStack() },
-                    onOpenTodoList = { navController.navigate(Screen.TodoListDetail(it)) },
+                    onOpenTodoList = {
+                        navController.navigate(Screen.Tasks) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                        }
+                    },
                     onOpenSimpleList = { navController.navigate(Screen.SimpleListDetail(it)) }
                 )
             }
             composable<Screen.Settings> {
-                SettingsScreen(onBack = { navController.popBackStack() })
+                SettingsScreen()
             }
         }
     }

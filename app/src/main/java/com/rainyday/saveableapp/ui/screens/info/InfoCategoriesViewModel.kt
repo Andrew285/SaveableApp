@@ -7,16 +7,24 @@ import com.rainyday.saveableapp.data.repository.InfoCategorySnapshot
 import com.rainyday.saveableapp.data.repository.InfoRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+
+data class InfoCategoryUiModel(val category: InfoCategoryEntity, val itemCount: Int)
 
 class InfoCategoriesViewModel(private val repository: InfoRepository) : ViewModel() {
     // null while the first Room emission hasn't arrived yet, so the UI can tell "loading" apart from "empty".
-    private val _categories = MutableStateFlow<List<InfoCategoryEntity>?>(null)
-    val categories: StateFlow<List<InfoCategoryEntity>?> = _categories
+    private val _categories = MutableStateFlow<List<InfoCategoryUiModel>?>(null)
+    val categories: StateFlow<List<InfoCategoryUiModel>?> = _categories
 
     init {
         viewModelScope.launch {
-            repository.observeCategories().collect { _categories.value = it }
+            combine(repository.observeCategories(), repository.observeCategoryCounts()) { categories, counts ->
+                val countsById = counts.associateBy { it.categoryId }
+                categories.map { category ->
+                    InfoCategoryUiModel(category, countsById[category.id]?.total ?: 0)
+                }
+            }.collect { _categories.value = it }
         }
     }
 

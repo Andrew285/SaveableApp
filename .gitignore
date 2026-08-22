@@ -18,6 +18,7 @@ local.properties
 .gradle/
 build/
 kotlin/
+.kotlin/
 
 # Local configuration file (sdk path, etc)
 local.properties
@@ -49,3 +50,6 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Local reference assets
+app/src/main/java/com/rainyday/saveableapp/assets/*.pdf

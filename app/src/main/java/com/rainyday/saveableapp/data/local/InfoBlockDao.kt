@@ -7,10 +7,15 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
+data class InfoCategoryCount(val categoryId: Long, val total: Int)
+
 @Dao
 interface InfoBlockDao {
     @Query("SELECT * FROM info_blocks WHERE categoryId = :categoryId ORDER BY position ASC")
     fun observeBlocksForCategory(categoryId: Long): Flow<List<InfoBlockEntity>>
+
+    @Query("SELECT categoryId, COUNT(*) as total FROM info_blocks GROUP BY categoryId")
+    fun observeCounts(): Flow<List<InfoCategoryCount>>
 
     @Query("SELECT * FROM info_blocks WHERE isFavorite = 1 ORDER BY updatedAt DESC")
     fun observeFavorites(): Flow<List<InfoBlockEntity>>

@@ -12,14 +12,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +39,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.rainyday.saveableapp.data.local.Priority
 import com.rainyday.saveableapp.data.local.TagEntity
+import com.rainyday.saveableapp.data.local.TodoListEntity
 import com.rainyday.saveableapp.ui.components.ColorPickerRow
+import com.rainyday.saveableapp.ui.components.PillButtonDanger
+import com.rainyday.saveableapp.ui.components.PillButtonFilled
+import com.rainyday.saveableapp.ui.components.SegmentedPillRow
+import com.rainyday.saveableapp.ui.components.TagChip
 import com.rainyday.saveableapp.ui.components.parseHexColor
 import com.rainyday.saveableapp.ui.theme.AccentColors
 import java.text.SimpleDateFormat
@@ -49,6 +54,8 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TaskEditSheet(
+    availableLists: List<TodoListEntity>,
+    initialListId: Long,
     initialTitle: String = "",
     initialNotes: String = "",
     initialPriority: Priority = Priority.MEDIUM,
@@ -58,10 +65,11 @@ fun TaskEditSheet(
     availableTags: List<TagEntity>,
     onCreateTag: (name: String, colorHex: String) -> Unit,
     onDismiss: () -> Unit,
-    onSave: (title: String, notes: String?, priority: Priority, dueDate: Long?, colorHex: String?, tagIds: List<Long>) -> Unit,
+    onSave: (listId: Long, title: String, notes: String?, priority: Priority, dueDate: Long?, colorHex: String?, tagIds: List<Long>) -> Unit,
     onDelete: (() -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var listId by remember { mutableStateOf(initialListId) }
     var title by remember { mutableStateOf(initialTitle) }
     var notes by remember { mutableStateOf(initialNotes) }
     var priority by remember { mutableStateOf(initialPriority) }
@@ -69,6 +77,7 @@ fun TaskEditSheet(
     var colorHex by remember { mutableStateOf(initialColorHex) }
     var selectedTagIds by remember { mutableStateOf(initialTagIds) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showListMenu by remember { mutableStateOf(false) }
     var newTagName by remember { mutableStateOf("") }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -96,21 +105,39 @@ fun TaskEditSheet(
                     .padding(top = 12.dp)
             )
 
-            SectionLabel("Priority")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Priority.entries.forEach { p ->
-                    FilterChip(
-                        selected = priority == p,
-                        onClick = { priority = p },
-                        label = { Text(p.label()) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = parseHexColor(p.accentHex()).copy(alpha = 0.25f)
-                        )
+            if (availableLists.isNotEmpty()) {
+                SectionLabel("// DESTINATION LIST")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val selectedList = availableLists.firstOrNull { it.id == listId }
+                    AssistChip(
+                        onClick = { showListMenu = true },
+                        label = { Text(selectedList?.name ?: "Choose list") },
+                        trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) }
                     )
+                    DropdownMenu(expanded = showListMenu, onDismissRequest = { showListMenu = false }) {
+                        availableLists.forEach { list ->
+                            DropdownMenuItem(
+                                text = { Text(list.name) },
+                                onClick = {
+                                    listId = list.id
+                                    showListMenu = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
-            SectionLabel("Due date")
+            SectionLabel("// PRIORITY LEVEL")
+            SegmentedPillRow(
+                options = Priority.entries,
+                selected = priority,
+                onSelect = { priority = it },
+                label = { it.label() },
+                accentColor = { parseHexColor(it.accentHex()) }
+            )
+
+            SectionLabel("// DEADLINE")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AssistChip(
                     onClick = { showDatePicker = true },
@@ -123,7 +150,7 @@ fun TaskEditSheet(
                 }
             }
 
-            SectionLabel("Highlight color")
+            SectionLabel("// CARD HIGHLIGHT COLOR")
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 AssistChip(
                     onClick = { colorHex = null },
@@ -132,19 +159,15 @@ fun TaskEditSheet(
                 ColorPickerRow(selectedHex = colorHex.orEmpty(), onSelect = { colorHex = it })
             }
 
-            SectionLabel("Tags")
+            SectionLabel("// TAGS")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 availableTags.forEach { tag ->
                     val selected = tag.id in selectedTagIds
-                    FilterChip(
-                        selected = selected,
+                    TagChip(
+                        label = tag.name,
                         onClick = {
                             selectedTagIds = if (selected) selectedTagIds - tag.id else selectedTagIds + tag.id
-                        },
-                        label = { Text(tag.name) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = parseHexColor(tag.colorHex).copy(alpha = 0.25f)
-                        )
+                        }
                     )
                 }
             }
@@ -180,24 +203,17 @@ fun TaskEditSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (onDelete != null) {
-                    TextButton(
-                        onClick = onDelete,
-                        colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text("Delete")
-                    }
+                    PillButtonDanger(text = "Delete Task", onClick = onDelete, modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.padding(start = 12.dp))
                 }
-                Spacer(modifier = Modifier.weight(1f))
-                Button(
-                    enabled = title.isNotBlank(),
+                PillButtonFilled(
+                    text = "Save",
+                    enabled = title.isNotBlank() && listId != 0L,
                     onClick = {
-                        onSave(title.trim(), notes.trim().ifBlank { null }, priority, dueDate, colorHex, selectedTagIds.toList())
-                    }
-                ) {
-                    Text("Save")
-                }
+                        onSave(listId, title.trim(), notes.trim().ifBlank { null }, priority, dueDate, colorHex, selectedTagIds.toList())
+                    },
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -225,7 +241,7 @@ fun TaskEditSheet(
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelLarge,
+        style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
     )

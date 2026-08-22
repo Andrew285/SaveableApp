@@ -2,8 +2,10 @@ package com.rainyday.saveableapp.ui.screens.lists
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,10 +16,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Share
@@ -26,7 +27,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +35,6 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,6 +44,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,6 +55,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
 import com.rainyday.saveableapp.data.local.SimpleListItemEntity
 import com.rainyday.saveableapp.ui.appContainer
+import com.rainyday.saveableapp.ui.components.DetailHeader
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.FieldValueChip
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
@@ -82,83 +83,89 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
     var showAddDialog by remember { mutableStateOf(false) }
     var itemPendingEdit by remember { mutableStateOf<SimpleListItemEntity?>(null) }
     var showFieldsManager by remember { mutableStateOf(false) }
+    var quickAddText by remember { mutableStateOf("") }
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         viewModel.moveItem(from.index, to.index)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(list?.name ?: "List") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showFieldsManager = true }) {
-                        Icon(Icons.Filled.Tune, contentDescription = "Manage fields")
-                    }
-                    IconButton(onClick = {
-                        val text = buildString {
-                            appendLine(list?.name ?: "List")
-                            items.forEach { item ->
-                                if (showCheckbox) append(if (item.isChecked) "[x] " else "[ ] ")
-                                append(item.text)
-                                if (!item.note.isNullOrBlank()) append(" — ${item.note}")
-                                if (!item.url.isNullOrBlank()) append(" (${item.url})")
-                                appendLine()
-                            }
-                        }
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, text)
-                        }
-                        context.startActivity(Intent.createChooser(intent, "Share list"))
-                    }) {
-                        Icon(Icons.Filled.Share, contentDescription = "Share")
-                    }
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } }) { padding ->
+        Column(modifier = Modifier.padding(padding)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                DetailHeader(onBack = onBack, backLabel = "Lists", modifier = Modifier.weight(1f))
+                IconButton(onClick = { showFieldsManager = true }) {
+                    Icon(Icons.Filled.Tune, contentDescription = "Manage fields")
                 }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "New item")
+                IconButton(onClick = {
+                    val text = buildString {
+                        appendLine(list?.name ?: "List")
+                        items.forEach { item ->
+                            if (showCheckbox) append(if (item.isChecked) "[x] " else "[ ] ")
+                            append(item.text)
+                            if (!item.note.isNullOrBlank()) append(" — ${item.note}")
+                            if (!item.url.isNullOrBlank()) append(" (${item.url})")
+                            appendLine()
+                        }
+                    }
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, text)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Share list"))
+                }) {
+                    Icon(Icons.Filled.Share, contentDescription = "Share")
+                }
             }
-        }
-    ) { padding ->
-        if (items.isEmpty()) {
-            EmptyState(
-                icon = Icons.AutoMirrored.Filled.MenuBook,
-                title = "Nothing here yet",
-                subtitle = "Add your first item to this list.",
-                actionLabel = "New item",
-                onAction = { showAddDialog = true },
-                modifier = Modifier.padding(padding)
+            Text(
+                text = list?.name ?: "List",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(horizontal = 20.dp)
             )
-        } else {
-            LazyColumn(
-                state = lazyListState,
-                contentPadding = PaddingValues(16.dp, padding.calculateTopPadding() + 8.dp, 16.dp, 96.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                itemsIndexed(items, key = { _, item -> item.id }) { _, item ->
-                    ReorderableItem(reorderableState, key = item.id) { _ ->
-                        val chips = fieldValuesByItem[item.id].orEmpty()
-                            .mapNotNull { value -> fieldsById[value.fieldId]?.let { it to value.value } }
-                        ItemRow(
-                            item = item,
-                            showCheckbox = showCheckbox,
-                            fieldChips = chips,
-                            onToggleChecked = { viewModel.setChecked(item, it) },
-                            onClick = { itemPendingEdit = item },
-                            dragHandle = { Modifier.draggableHandle() }
-                        )
+
+            if (items.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Filled.FiberManualRecord,
+                    title = "Nothing here yet",
+                    subtitle = "Add your first item to this list.",
+                    actionLabel = "New item",
+                    onAction = { showAddDialog = true },
+                    modifier = Modifier.weight(1f)
+                )
+            } else {
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(20.dp, 12.dp, 20.dp, 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(items, key = { _, item -> item.id }) { _, item ->
+                        ReorderableItem(reorderableState, key = item.id) { _ ->
+                            val chips = fieldValuesByItem[item.id].orEmpty()
+                                .mapNotNull { value -> fieldsById[value.fieldId]?.let { it to value.value } }
+                            ItemRow(
+                                item = item,
+                                showCheckbox = showCheckbox,
+                                fieldChips = chips,
+                                onToggleChecked = { viewModel.setChecked(item, it) },
+                                onClick = { itemPendingEdit = item },
+                                dragHandle = { Modifier.draggableHandle() }
+                            )
+                        }
                     }
                 }
+                QuickAddItemBar(
+                    placeholder = "Add ${list?.name?.lowercase()?.trimEnd('s') ?: "an item"}...",
+                    text = quickAddText,
+                    onTextChange = { quickAddText = it },
+                    onSubmit = {
+                        if (quickAddText.isNotBlank()) {
+                            viewModel.createItem(quickAddText.trim(), null, null, emptyMap())
+                            quickAddText = ""
+                        }
+                    }
+                )
             }
         }
     }
@@ -213,6 +220,41 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
 }
 
 @Composable
+private fun QuickAddItemBar(placeholder: String, text: String, onTextChange: (String) -> Unit, onSubmit: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        androidx.compose.material3.OutlinedTextField(
+            value = text,
+            onValueChange = onTextChange,
+            placeholder = { Text(placeholder) },
+            singleLine = true,
+            shape = com.rainyday.saveableapp.ui.theme.PillShape,
+            modifier = Modifier.weight(1f)
+        )
+        Box(
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+                .clickable(onClick = onSubmit),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Add item",
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun ItemRow(
     item: SimpleListItemEntity,
     showCheckbox: Boolean,
@@ -225,13 +267,13 @@ private fun ItemRow(
     Card(
         onClick = onClick,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 6.dp, horizontal = 8.dp),
+                .padding(vertical = 8.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (showCheckbox) {

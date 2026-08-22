@@ -2,76 +2,86 @@ package com.rainyday.saveableapp.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Light scheme
-val LightPrimary = Color(0xFF4C5FD5)
+// Light scheme — same "vault" design language as dark, lighter surfaces.
+val LightPrimary = Color(0xFF0FAF82)
 val LightOnPrimary = Color(0xFFFFFFFF)
-val LightPrimaryContainer = Color(0xFFE0E4FF)
-val LightOnPrimaryContainer = Color(0xFF0E1A6B)
+val LightPrimaryContainer = Color(0xFFD3F5E6)
+val LightOnPrimaryContainer = Color(0xFF063D2C)
 
-val LightSecondary = Color(0xFF5C6270)
+val LightSecondary = Color(0xFF4C8FE0)
 val LightOnSecondary = Color(0xFFFFFFFF)
-val LightSecondaryContainer = Color(0xFFE3E5F0)
-val LightOnSecondaryContainer = Color(0xFF1A1D29)
+val LightSecondaryContainer = Color(0xFFDCE9FA)
+val LightOnSecondaryContainer = Color(0xFF16324F)
 
-val LightTertiary = Color(0xFF7C5CC7)
+val LightTertiary = Color(0xFF8B5FD9)
 val LightOnTertiary = Color(0xFFFFFFFF)
-val LightTertiaryContainer = Color(0xFFEBDDFF)
+val LightTertiaryContainer = Color(0xFFEADDFB)
 val LightOnTertiaryContainer = Color(0xFF2C1854)
 
-val LightBackground = Color(0xFFFBFAFF)
-val LightOnBackground = Color(0xFF1B1B22)
-val LightSurface = Color(0xFFFBFAFF)
-val LightOnSurface = Color(0xFF1B1B22)
-val LightSurfaceVariant = Color(0xFFE4E2EC)
-val LightOnSurfaceVariant = Color(0xFF46464F)
-val LightOutline = Color(0xFF777680)
+val LightBackground = Color(0xFFF6F7F9)
+val LightOnBackground = Color(0xFF14161A)
+val LightSurface = Color(0xFFFFFFFF)
+val LightOnSurface = Color(0xFF14161A)
+val LightSurfaceVariant = Color(0xFFFFFFFF)
+val LightOnSurfaceVariant = Color(0xFF62666E)
+val LightOutline = Color(0xFFDDE0E4)
 
-val LightError = Color(0xFFBA1A1A)
+val LightError = Color(0xFFD8324B)
 val LightOnError = Color(0xFFFFFFFF)
-val LightErrorContainer = Color(0xFFFFDAD6)
-val LightOnErrorContainer = Color(0xFF410002)
+val LightErrorContainer = Color(0xFFFBDADF)
+val LightOnErrorContainer = Color(0xFF410007)
 
-// Dark scheme
-val DarkPrimary = Color(0xFFBAC3FF)
-val DarkOnPrimary = Color(0xFF1B2A8F)
-val DarkPrimaryContainer = Color(0xFF34409E)
-val DarkOnPrimaryContainer = Color(0xFFE0E4FF)
+// Dark scheme — matches the "Vault" mockups: near-black background, solid dark
+// cards, mint accent, monospace-flavored meta text.
+val DarkPrimary = Color(0xFF2EE6A8)
+val DarkOnPrimary = Color(0xFF00382A)
+val DarkPrimaryContainer = Color(0xFF0B4A38)
+val DarkOnPrimaryContainer = Color(0xFFB6FBE0)
 
-val DarkSecondary = Color(0xFFC5C6D6)
-val DarkOnSecondary = Color(0xFF2D323F)
-val DarkSecondaryContainer = Color(0xFF434857)
-val DarkOnSecondaryContainer = Color(0xFFE1E2F0)
+val DarkSecondary = Color(0xFF4C8FE0)
+val DarkOnSecondary = Color(0xFF06264B)
+val DarkSecondaryContainer = Color(0xFF12386B)
+val DarkOnSecondaryContainer = Color(0xFFD6E6FF)
 
-val DarkTertiary = Color(0xFFD3BCFF)
-val DarkOnTertiary = Color(0xFF3F2478)
-val DarkTertiaryContainer = Color(0xFF573B90)
+val DarkTertiary = Color(0xFFA855F7)
+val DarkOnTertiary = Color(0xFF2C0A54)
+val DarkTertiaryContainer = Color(0xFF432370)
 val DarkOnTertiaryContainer = Color(0xFFEBDDFF)
 
-val DarkBackground = Color(0xFF131318)
-val DarkOnBackground = Color(0xFFE4E2E9)
-val DarkSurface = Color(0xFF131318)
-val DarkOnSurface = Color(0xFFE4E2E9)
-val DarkSurfaceVariant = Color(0xFF46464F)
-val DarkOnSurfaceVariant = Color(0xFFC7C5D0)
-val DarkOutline = Color(0xFF91909A)
+val DarkBackground = Color(0xFF0A0B0D)
+val DarkOnBackground = Color(0xFFF5F6F7)
+val DarkSurface = Color(0xFF0A0B0D)
+val DarkOnSurface = Color(0xFFF5F6F7)
+val DarkSurfaceVariant = Color(0xFF171A1F)
+val DarkOnSurfaceVariant = Color(0xFF8A8F98)
+val DarkOutline = Color(0xFF262A30)
 
-val DarkError = Color(0xFFFFB4AB)
-val DarkOnError = Color(0xFF690005)
-val DarkErrorContainer = Color(0xFF93000A)
-val DarkOnErrorContainer = Color(0xFFFFDAD6)
+val DarkError = Color(0xFFF0465F)
+val DarkOnError = Color(0xFF4A0011)
+val DarkErrorContainer = Color(0xFF551020)
+val DarkOnErrorContainer = Color(0xFFFFD9DE)
 
-/** Curated accent colors users can pick for lists, tags, and task highlights. */
+/** Priority accent colors shared by Tasks screens. */
+object PriorityColors {
+    val low = Color(0xFF8A8F98)
+    val medium = Color(0xFF4C8FE0)
+    val high = Color(0xFFF5A623)
+    val urgent = Color(0xFFF0465F)
+}
+
+/** Curated accent colors users can pick for lists, tags, and task highlights. Mint leads, matching
+ *  the highlight-color picker in the mockups. */
 object AccentColors {
     val palette = listOf(
-        "#E4574C", // coral red
-        "#EF8A3D", // orange
-        "#E8B23A", // amber
-        "#6FB668", // green
-        "#3FA796", // teal
+        "#2EE6A8", // mint
         "#4C8FE0", // blue
-        "#4C5FD5", // indigo
-        "#7C5CC7", // violet
+        "#F5A623", // orange
+        "#F0465F", // red
+        "#A855F7", // purple
+        "#E4574C", // coral red
+        "#3FA796", // teal
         "#D2609C", // pink
+        "#6FB668", // green
         "#6E7280", // graphite
     )
 }
