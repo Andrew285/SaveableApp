@@ -82,7 +82,9 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
     val container = appContainer()
     val viewModel: TasksViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { TasksViewModel(container.todoRepository, container.preferencesRepository) }
+            initializer {
+                TasksViewModel(container.todoRepository, container.preferencesRepository, container.groqRepository)
+            }
         }
     )
     val lists by viewModel.lists.collectAsState()
@@ -92,9 +94,11 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
     val filter by viewModel.filter.collectAsState()
     val archivedTasks by viewModel.archivedTasks.collectAsState()
     val lastUsedListId by viewModel.lastUsedListId.collectAsState()
+    val aiParsing by viewModel.aiParsing.collectAsState()
 
     var showAddSheet by remember { mutableStateOf(false) }
     var quickAddTitle by remember { mutableStateOf("") }
+    var aiDraft by remember { mutableStateOf<AiTaskDraft?>(null) }
     var taskPendingEdit by remember { mutableStateOf<Pair<Long, com.rainyday.saveableapp.data.local.TaskWithTags>?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
@@ -225,11 +229,20 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
                     QuickAddBar(
                         text = quickAddText,
                         onTextChange = { quickAddText = it },
+                        busy = aiParsing,
                         onSubmit = {
-                            if (quickAddText.isNotBlank() && lists.isNotEmpty()) {
-                                quickAddTitle = quickAddText.trim()
+                            if (quickAddText.isNotBlank() && lists.isNotEmpty() && !aiParsing) {
+                                val input = quickAddText.trim()
+                                quickAddTitle = input
                                 quickAddText = ""
-                                showAddSheet = true
+                                aiDraft = null
+                                scope.launch {
+                                    when (val outcome = viewModel.parseTaskWithAi(input)) {
+                                        is AiParseOutcome.Success -> aiDraft = outcome.draft
+                                        is AiParseOutcome.Error -> snackbarHostState.showSnackbar(outcome.message)
+                                    }
+                                    showAddSheet = true
+                                }
                             }
                         }
                     )
@@ -239,18 +252,27 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
     }
 
     if (showAddSheet) {
-        val defaultListId = lastUsedListId?.takeIf { id -> lists.any { it.id == id } } ?: lists.firstOrNull()?.id ?: 0L
+        val draft = aiDraft
+        val defaultListId = draft?.listId
+            ?: lastUsedListId?.takeIf { id -> lists.any { it.id == id } }
+            ?: lists.firstOrNull()?.id
+            ?: 0L
         TaskEditSheet(
             availableLists = lists,
             initialListId = defaultListId,
-            initialTitle = quickAddTitle,
+            initialTitle = draft?.title ?: quickAddTitle,
+            initialNotes = draft?.notes.orEmpty(),
+            initialPriority = draft?.priority ?: com.rainyday.saveableapp.data.local.Priority.MEDIUM,
+            initialDueDate = draft?.dueDate,
+            initialTagIds = draft?.tagIds?.toSet() ?: emptySet(),
             availableTags = tags,
             onCreateTag = viewModel::createTag,
-            onDismiss = { showAddSheet = false; quickAddTitle = "" },
+            onDismiss = { showAddSheet = false; quickAddTitle = ""; aiDraft = null },
             onSave = { listId, title, notes, priority, dueDate, colorHex, tagIds ->
                 viewModel.createTask(listId, title, notes, priority, dueDate, colorHex, tagIds)
                 showAddSheet = false
                 quickAddTitle = ""
+                aiDraft = null
             }
         )
     }
@@ -384,7 +406,7 @@ private fun TaskGroupHeader(
 }
 
 @Composable
-private fun QuickAddBar(text: String, onTextChange: (String) -> Unit, onSubmit: () -> Unit) {
+private fun QuickAddBar(text: String, onTextChange: (String) -> Unit, busy: Boolean = false, onSubmit: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -402,7 +424,8 @@ private fun QuickAddBar(text: String, onTextChange: (String) -> Unit, onSubmit: 
         OutlinedTextField(
             value = text,
             onValueChange = onTextChange,
-            placeholder = { Text("Type a task...") },
+            placeholder = { Text(if (busy) "Reading your task..." else "Type a task...") },
+            enabled = !busy,
             singleLine = true,
             shape = PillShape,
             modifier = Modifier.weight(1f)
@@ -413,15 +436,23 @@ private fun QuickAddBar(text: String, onTextChange: (String) -> Unit, onSubmit: 
                 .size(40.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary)
-                .clickable(onClick = onSubmit),
+                .clickable(enabled = !busy, onClick = onSubmit),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Send,
-                contentDescription = "Add task",
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(18.dp)
-            )
+            if (busy) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "Add task",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }
@@ -527,7 +558,16 @@ private fun TaskRow(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    item.tags.forEach { tag -> TagChip(label = "#${tag.name}", onClick = onClick) }
+                }
+                if (item.tags.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        item.tags.forEach { tag -> TagChip(label = "#${tag.name}", onClick = onClick) }
+                    }
                 }
             }
         }

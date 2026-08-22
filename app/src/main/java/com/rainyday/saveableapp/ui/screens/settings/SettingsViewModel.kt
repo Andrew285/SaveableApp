@@ -37,6 +37,13 @@ class SettingsViewModel(
     val driveLastBackupAt: StateFlow<Long?> = preferencesRepository.driveLastBackupAt
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val groqApiKey: StateFlow<String?> = preferencesRepository.groqApiKey
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun setGroqApiKey(key: String) {
+        viewModelScope.launch { preferencesRepository.setGroqApiKey(key) }
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { preferencesRepository.setThemeMode(mode) }
     }

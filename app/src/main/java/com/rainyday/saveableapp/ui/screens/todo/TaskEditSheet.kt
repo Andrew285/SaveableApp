@@ -165,6 +165,7 @@ fun TaskEditSheet(
                     val selected = tag.id in selectedTagIds
                     TagChip(
                         label = tag.name,
+                        selected = selected,
                         onClick = {
                             selectedTagIds = if (selected) selectedTagIds - tag.id else selectedTagIds + tag.id
                         }

@@ -1,6 +1,7 @@
 package com.rainyday.saveableapp.di
 
 import android.content.Context
+import com.rainyday.saveableapp.data.ai.GroqRepository
 import com.rainyday.saveableapp.data.drive.DriveBackupRepository
 import com.rainyday.saveableapp.data.local.AppDatabase
 import com.rainyday.saveableapp.data.prefs.PreferencesRepository
@@ -35,6 +36,8 @@ class AppContainer(context: Context) {
     }
 
     val preferencesRepository by lazy { PreferencesRepository(context.applicationContext) }
+
+    val groqRepository by lazy { GroqRepository(preferencesRepository) }
 
     val backupRepository by lazy { BackupRepository(database, database.backupDao()) }
 

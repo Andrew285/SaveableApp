@@ -2,6 +2,7 @@ package com.rainyday.saveableapp.ui.screens.todo
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rainyday.saveableapp.data.ai.GroqRepository
 import com.rainyday.saveableapp.data.local.Priority
 import com.rainyday.saveableapp.data.local.TagEntity
 import com.rainyday.saveableapp.data.local.TaskWithTags
@@ -9,6 +10,7 @@ import com.rainyday.saveableapp.data.local.TodoListEntity
 import com.rainyday.saveableapp.data.local.TodoTaskEntity
 import com.rainyday.saveableapp.data.prefs.PreferencesRepository
 import com.rainyday.saveableapp.data.repository.TodoRepository
+import com.rainyday.saveableapp.ui.theme.AccentColors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,9 +23,29 @@ data class TaskGroup(val list: TodoListEntity, val tasks: List<TaskWithTags>)
 enum class TaskSort { DEFAULT, PRIORITY, DUE_DATE, ALPHABETICAL }
 enum class TaskFilter { ALL, ACTIVE, COMPLETED }
 
+/** Task fields resolved from AI parsing, ready to prefill the add-task sheet. */
+data class AiTaskDraft(
+    val listId: Long,
+    val title: String,
+    val notes: String?,
+    val priority: Priority,
+    val dueDate: Long?,
+    val tagIds: List<Long>
+)
+
+sealed interface AiParseOutcome {
+    data class Success(val draft: AiTaskDraft) : AiParseOutcome
+    data class Error(val message: String) : AiParseOutcome
+}
+
+private const val UNCATEGORIZED_LIST_NAME = "Uncategorized"
+private const val UNCATEGORIZED_LIST_COLOR_HEX = "#9E9E9E"
+private const val UNCATEGORIZED_LIST_ICON_KEY = "checklist"
+
 class TasksViewModel(
     private val repository: TodoRepository,
-    private val preferencesRepository: PreferencesRepository
+    private val preferencesRepository: PreferencesRepository,
+    private val groqRepository: GroqRepository
 ) : ViewModel() {
     val lists: StateFlow<List<TodoListEntity>> = repository.observeLists()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -65,6 +87,59 @@ class TasksViewModel(
 
     val lastUsedListId: StateFlow<Long?> = preferencesRepository.lastUsedTodoListId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private val _aiParsing = MutableStateFlow(false)
+    val aiParsing: StateFlow<Boolean> = _aiParsing
+
+    /** Sends [input] to Groq to extract title, notes, priority, due date, list, and tags. */
+    suspend fun parseTaskWithAi(input: String): AiParseOutcome {
+        _aiParsing.value = true
+        return try {
+            val result = groqRepository.parseTask(
+                input = input,
+                existingListNames = lists.value.map { it.name },
+                existingTagNames = tags.value.map { it.name }
+            )
+            result.fold(
+                onSuccess = { parsed ->
+                    val listId = resolveListId(parsed.listName)
+                    val tagIds = parsed.tagNames.mapNotNull { resolveTagId(it) }
+                    AiParseOutcome.Success(
+                        AiTaskDraft(
+                            listId = listId,
+                            title = parsed.title,
+                            notes = parsed.notes,
+                            priority = parsed.priority ?: Priority.MEDIUM,
+                            dueDate = parsed.dueDate,
+                            tagIds = tagIds
+                        )
+                    )
+                },
+                onFailure = { e -> AiParseOutcome.Error(e.message ?: "AI parsing failed") }
+            )
+        } finally {
+            _aiParsing.value = false
+        }
+    }
+
+    /** Matches [name] against existing lists case-insensitively; falls back to (creating) Uncategorized. */
+    private suspend fun resolveListId(name: String?): Long {
+        val current = lists.value
+        val trimmed = name?.trim().orEmpty()
+        if (trimmed.isNotEmpty()) {
+            current.firstOrNull { it.name.equals(trimmed, ignoreCase = true) }?.let { return it.id }
+        }
+        current.firstOrNull { it.name.equals(UNCATEGORIZED_LIST_NAME, ignoreCase = true) }?.let { return it.id }
+        return repository.createList(UNCATEGORIZED_LIST_NAME, UNCATEGORIZED_LIST_COLOR_HEX, UNCATEGORIZED_LIST_ICON_KEY)
+    }
+
+    /** Matches [name] against existing tags case-insensitively, creating a new tag if needed. */
+    private suspend fun resolveTagId(name: String): Long? {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return null
+        tags.value.firstOrNull { it.name.equals(trimmed, ignoreCase = true) }?.let { return it.id }
+        return repository.createTag(trimmed, AccentColors.palette.random())
+    }
 
     fun setSort(value: TaskSort) {
         _sort.value = value
