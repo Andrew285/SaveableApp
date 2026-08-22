@@ -1,5 +1,6 @@
 package com.rainyday.saveableapp.data.ai
 
+import com.rainyday.saveableapp.data.local.FieldType
 import com.rainyday.saveableapp.data.local.Priority
 import com.rainyday.saveableapp.data.prefs.PreferencesRepository
 import java.net.HttpURLConnection
@@ -34,6 +35,22 @@ data class ParsedTask(
     val tagNames: List<String>
 )
 
+/** Fields extracted from free-form simple-list item text. Any field the model can't determine is left null. */
+data class ParsedListItem(
+    val text: String,
+    val note: String?,
+    val url: String?,
+    val listName: String?,
+    /** Custom field values keyed by the field's own name (as passed into [GroqRepository.parseListItem]). */
+    val fieldValues: Map<String, String>
+)
+
+/** One custom field a simple list defines, e.g. "Rating" (RATING). */
+data class FieldSpec(val name: String, val type: FieldType)
+
+/** An existing simple list and the custom fields it defines, given as context for AI parsing. */
+data class SimpleListContext(val name: String, val fields: List<FieldSpec> = emptyList())
+
 /**
  * Calls Groq's OpenAI-compatible chat completions endpoint (free-tier `openai/gpt-oss-20b`) to turn
  * a quick-add task string into structured fields. The API key is user-supplied (Settings, testing only).
@@ -62,6 +79,76 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
 
             json.decodeFromString<ParsedTaskDto>(content).toParsedTask(fallbackTitle = input.trim())
         }
+    }
+
+    suspend fun parseListItem(
+        input: String,
+        existingLists: List<SimpleListContext>
+    ): Result<ParsedListItem> = withContext(Dispatchers.IO) {
+        runCatching {
+            val apiKey = preferencesRepository.groqApiKey.first()?.trim()
+            require(!apiKey.isNullOrEmpty()) { "Add a Groq API key in Settings to use AI task parsing." }
+
+            val systemPrompt = buildListItemSystemPrompt(Date(), existingLists)
+            val responseBody = postChatCompletion(apiKey, systemPrompt, input)
+
+            val chatResponse = json.decodeFromString<GroqChatResponse>(responseBody)
+            val content = chatResponse.choices.firstOrNull()?.message?.content
+            require(!content.isNullOrBlank()) { "Groq returned an empty response." }
+
+            json.decodeFromString<ParsedListItemDto>(content)
+                .toParsedListItem(fallbackText = input.trim(), existingLists = existingLists)
+        }
+    }
+
+    private fun buildListItemSystemPrompt(referenceDate: Date, existingLists: List<SimpleListContext>): String {
+        val datesTable = buildUpcomingDatesTable(referenceDate)
+        val listNames = existingLists.joinToString { it.name }
+        val fieldsTable = if (existingLists.isEmpty()) {
+            "  (no lists yet)"
+        } else {
+            existingLists.joinToString("\n") { list ->
+                val fieldsDesc = if (list.fields.isEmpty()) {
+                    "no custom fields"
+                } else {
+                    list.fields.joinToString(", ") { field ->
+                        "${field.name} (${field.type.name}${if (field.type == FieldType.RATING) " 1-5" else ""})"
+                    }
+                }
+                "  - ${list.name}: $fieldsDesc"
+            }
+        }
+        return """
+        You are a parsing assistant for a simple-lists app (e.g. movies to watch, books to read,
+        groceries, gift ideas). Extract structured fields from the user's raw item text and respond
+        with ONLY a JSON object with exactly these keys:
+        - "text": short item title (string, required, never empty). Strip a leading category word that
+          only names the kind of thing (e.g. "Movie", "Book", "Фільм", "Книга") from the title — that
+          word should only help you pick the right list below, it must not remain part of the title.
+        - "note": a short additional detail mentioned in the text, or null if there is none
+        - "url": a URL mentioned in the text, or null if none is present
+        - "list": the single best-matching list name from this exact set of existing lists: [$listNames], or null if none of them clearly fit
+
+        Existing lists and the custom fields each one defines (only relevant once you've picked a list above):
+        $fieldsTable
+
+        - "fields": a JSON array of {"name": <field name>, "value": <string>} — ONLY for the custom
+          fields that belong to the list you picked in "list" above, and ONLY when the item text
+          clearly implies a value for that field. Skip a field entirely (do not include it) if the
+          text says nothing about it — never guess a value just to fill it in. Format "value" to match
+          the field's declared type:
+            TEXT -> plain text; NUMBER -> digits only, no units; RATING -> a whole number from 1 to 5;
+            DATE -> as "$ISO_DATE", resolved via this table instead of computing it yourself (always
+            match to the nearest upcoming date):
+          $datesTable
+          If the list you picked has no custom fields, or none of them clearly apply, "fields" MUST be
+          an empty array.
+
+        The item text may be written in any language (e.g. English or Ukrainian) — keep "text", "note",
+        and any TEXT-type field value in that same language.
+
+        Respond with raw JSON only. No markdown, no code fences, no explanation.
+        """.trimIndent()
     }
 
     private fun buildSystemPrompt(referenceDate: Date, existingLists: List<String>, existingTags: List<String>): String {
@@ -176,6 +263,38 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
         val format = SimpleDateFormat(ISO_DATE, Locale.US).apply { isLenient = false }
         format.parse(text)?.time
     }.getOrNull()
+
+    private fun ParsedListItemDto.toParsedListItem(
+        fallbackText: String,
+        existingLists: List<SimpleListContext>
+    ): ParsedListItem {
+        val resolvedListName = list?.trim()?.takeIf { it.isNotBlank() }
+        val matchedList = resolvedListName?.let { name -> existingLists.firstOrNull { it.name.equals(name, ignoreCase = true) } }
+        val resolvedFieldValues = fields.mapNotNull { field ->
+            val fieldName = field.name?.trim().orEmpty()
+            val rawValue = field.value?.trim().orEmpty()
+            if (fieldName.isEmpty() || rawValue.isEmpty()) return@mapNotNull null
+            val spec = matchedList?.fields?.firstOrNull { it.name.equals(fieldName, ignoreCase = true) } ?: return@mapNotNull null
+            val converted = convertFieldValue(rawValue, spec.type) ?: return@mapNotNull null
+            spec.name to converted
+        }.toMap()
+
+        return ParsedListItem(
+            text = text?.trim().takeUnless { it.isNullOrBlank() } ?: fallbackText,
+            note = note?.trim()?.takeIf { it.isNotBlank() },
+            url = url?.trim()?.takeIf { it.isNotBlank() },
+            listName = resolvedListName,
+            fieldValues = resolvedFieldValues
+        )
+    }
+
+    /** Converts a model-provided field value into the raw string format the app stores for [type]. */
+    private fun convertFieldValue(raw: String, type: FieldType): String? = when (type) {
+        FieldType.TEXT -> raw
+        FieldType.NUMBER -> Regex("-?\\d+(\\.\\d+)?").find(raw)?.value
+        FieldType.RATING -> raw.toIntOrNull()?.coerceIn(1, 5)?.toString()
+        FieldType.DATE -> parseIsoDate(raw)?.toString()
+    }
 }
 
 @Serializable
@@ -195,4 +314,19 @@ private data class ParsedTaskDto(
     @SerialName("due_date") val dueDate: String? = null,
     val list: String? = null,
     val tags: List<String> = emptyList()
+)
+
+@Serializable
+private data class ParsedListItemDto(
+    val text: String? = null,
+    val note: String? = null,
+    val url: String? = null,
+    val list: String? = null,
+    val fields: List<ParsedFieldDto> = emptyList()
+)
+
+@Serializable
+private data class ParsedFieldDto(
+    val name: String? = null,
+    val value: String? = null
 )

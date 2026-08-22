@@ -1,19 +1,32 @@
 package com.rainyday.saveableapp.ui.screens.lists
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -21,7 +34,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -38,6 +53,7 @@ import com.rainyday.saveableapp.ui.components.LoadingIndicator
 import com.rainyday.saveableapp.ui.components.PillButtonPrimary
 import com.rainyday.saveableapp.ui.components.ScreenHeader
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
+import com.rainyday.saveableapp.ui.theme.PillShape
 import kotlinx.coroutines.launch
 
 private val templateOptions = simpleListTemplates.map {
@@ -51,14 +67,19 @@ fun SimpleListsScreen(
 ) {
     val container = appContainer()
     val viewModel: SimpleListsViewModel = viewModel(
-        factory = viewModelFactory { initializer { SimpleListsViewModel(container.listsRepository) } }
+        factory = viewModelFactory { initializer { SimpleListsViewModel(container.listsRepository, container.groqRepository) } }
     )
     val lists by viewModel.lists.collectAsState()
+    val aiParsing by viewModel.aiParsing.collectAsState()
+    val fieldsByListId by viewModel.fieldsByListId.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var listPendingEdit by remember { mutableStateOf<SimpleListEntity?>(null) }
+    var aiInputText by remember { mutableStateOf("") }
+    var aiDraft by remember { mutableStateOf<AiListItemDraft?>(null) }
+    var showAiReviewSheet by remember { mutableStateOf(false) }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } }) { padding ->
         Column(modifier = Modifier.padding(padding)) {
@@ -102,6 +123,25 @@ fun SimpleListsScreen(
                             )
                         }
                     }
+                    AiQuickAddBar(
+                        text = aiInputText,
+                        onTextChange = { aiInputText = it },
+                        busy = aiParsing,
+                        onSubmit = {
+                            if (aiInputText.isNotBlank() && !aiParsing) {
+                                val input = aiInputText.trim()
+                                aiInputText = ""
+                                aiDraft = null
+                                scope.launch {
+                                    when (val outcome = viewModel.parseItemWithAi(input)) {
+                                        is AiListItemOutcome.Success -> aiDraft = outcome.draft
+                                        is AiListItemOutcome.Error -> snackbarHostState.showSnackbar(outcome.message)
+                                    }
+                                    showAiReviewSheet = true
+                                }
+                            }
+                        }
+                    )
                     PillButtonPrimary(
                         text = "+ New List",
                         onClick = { showCreateDialog = true },
@@ -154,5 +194,77 @@ fun SimpleListsScreen(
                 }
             }
         )
+    }
+
+    if (showAiReviewSheet) {
+        val draft = aiDraft
+        val availableLists = lists.orEmpty().map { it.list }
+        AiAddItemSheet(
+            availableLists = availableLists,
+            fieldsByListId = fieldsByListId,
+            initialListId = draft?.listId ?: availableLists.firstOrNull()?.id ?: 0L,
+            initialText = draft?.text ?: aiInputText,
+            initialNote = draft?.note.orEmpty(),
+            initialUrl = draft?.url.orEmpty(),
+            initialFieldValues = draft?.fieldValues.orEmpty(),
+            onDismiss = { showAiReviewSheet = false; aiDraft = null },
+            onSave = { listId, text, note, url, fieldValues ->
+                viewModel.createItem(listId, text, note, url, fieldValues)
+                showAiReviewSheet = false
+                aiDraft = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun AiQuickAddBar(text: String, onTextChange: (String) -> Unit, busy: Boolean = false, onSubmit: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Filled.AutoAwesome,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .padding(end = 8.dp)
+                .size(20.dp)
+        )
+        OutlinedTextField(
+            value = text,
+            onValueChange = onTextChange,
+            placeholder = { Text(if (busy) "Reading your item..." else "e.g. Movie \"Odyssey\"") },
+            enabled = !busy,
+            singleLine = true,
+            shape = PillShape,
+            modifier = Modifier.weight(1f)
+        )
+        Box(
+            modifier = Modifier
+                .padding(start = 8.dp)
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+                .clickable(enabled = !busy, onClick = onSubmit),
+            contentAlignment = Alignment.Center
+        ) {
+            if (busy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "Add item",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
     }
 }

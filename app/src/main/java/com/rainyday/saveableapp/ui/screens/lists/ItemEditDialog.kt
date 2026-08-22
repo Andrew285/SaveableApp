@@ -144,7 +144,7 @@ fun ItemEditDialog(
 }
 
 @Composable
-private fun FieldInput(
+internal fun FieldInput(
     field: FieldDefinitionEntity,
     value: String?,
     onValueChange: (String) -> Unit,

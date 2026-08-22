@@ -15,6 +15,9 @@ interface FieldDefinitionDao {
     @Query("SELECT * FROM list_field_definitions WHERE listId = :listId ORDER BY position ASC")
     suspend fun getFieldsForList(listId: Long): List<FieldDefinitionEntity>
 
+    @Query("SELECT * FROM list_field_definitions ORDER BY listId ASC, position ASC")
+    fun observeAllFields(): Flow<List<FieldDefinitionEntity>>
+
     @Insert
     suspend fun insert(field: FieldDefinitionEntity): Long
 

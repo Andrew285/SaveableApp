@@ -122,6 +122,8 @@ class ListsRepository(
 
     fun observeFields(listId: Long): Flow<List<FieldDefinitionEntity>> = fieldDefinitionDao.observeFieldsForList(listId)
 
+    fun observeAllFields(): Flow<List<FieldDefinitionEntity>> = fieldDefinitionDao.observeAllFields()
+
     fun observeFieldValues(listId: Long): Flow<List<FieldValueEntity>> = fieldValueDao.observeValuesForList(listId)
 
     suspend fun createField(listId: Long, name: String, type: FieldType, colorHex: String): Long {
