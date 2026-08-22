@@ -67,7 +67,11 @@ fun SimpleListsScreen(
 ) {
     val container = appContainer()
     val viewModel: SimpleListsViewModel = viewModel(
-        factory = viewModelFactory { initializer { SimpleListsViewModel(container.listsRepository, container.groqRepository) } }
+        factory = viewModelFactory {
+            initializer {
+                SimpleListsViewModel(container.listsRepository, container.groqRepository, container.linkPreviewRepository)
+            }
+        }
     )
     val lists by viewModel.lists.collectAsState()
     val aiParsing by viewModel.aiParsing.collectAsState()
@@ -236,7 +240,7 @@ private fun AiQuickAddBar(text: String, onTextChange: (String) -> Unit, busy: Bo
         OutlinedTextField(
             value = text,
             onValueChange = onTextChange,
-            placeholder = { Text(if (busy) "Reading your item..." else "e.g. Movie \"Odyssey\"") },
+            placeholder = { Text(if (busy) "Reading your item..." else "e.g. Movie \"Odyssey\", or paste a link") },
             enabled = !busy,
             singleLine = true,
             shape = PillShape,

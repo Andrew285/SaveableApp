@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
 import com.rainyday.saveableapp.data.local.FieldType
+import com.rainyday.saveableapp.ui.components.LinkPreviewCard
 import com.rainyday.saveableapp.ui.components.StarRatingInput
 import com.rainyday.saveableapp.ui.components.normalizeUrl
 import com.rainyday.saveableapp.ui.components.parseHexColor
@@ -91,6 +92,14 @@ fun ItemEditDialog(
                         .fillMaxWidth()
                         .padding(top = 12.dp)
                 )
+                normalizeUrl(link)?.let { normalized ->
+                    LinkPreviewCard(
+                        url = normalized,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    )
+                }
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },

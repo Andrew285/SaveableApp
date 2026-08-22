@@ -129,6 +129,19 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
         - "url": a URL mentioned in the text, or null if none is present
         - "list": the single best-matching list name from this exact set of existing lists: [$listNames], or null if none of them clearly fit
 
+        If the item text is just a URL (or a URL plus very little else), use the URL itself — its
+        domain, path, and slug — plus what you know about that site to infer a real, human-readable
+        title and to guess which list fits best (e.g. a movie/streaming/reviews URL suggests a movies
+        list, a bookstore or reading-tracker URL suggests a books list, a recipe site suggests a
+        recipes list, a shop/product URL suggests a shopping or wishlist). Only fall back to a generic
+        label like the bare domain name for "text" if nothing more specific can reasonably be inferred.
+
+        If the item text includes a parenthetical like `(The link's actual page title is: "...")`, that
+        title was fetched directly from the page, so treat it as the authoritative answer for "text" —
+        use it verbatim (only stripping a leading category word as above) instead of guessing your own,
+        and use it to help judge "list" and "fields" too. Never copy that parenthetical annotation itself
+        into "note" — it is context for you, not something the user wrote.
+
         Existing lists and the custom fields each one defines (only relevant once you've picked a list above):
         $fieldsTable
 

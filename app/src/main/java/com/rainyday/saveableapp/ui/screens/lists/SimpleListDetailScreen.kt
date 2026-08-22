@@ -1,7 +1,6 @@
 package com.rainyday.saveableapp.ui.screens.lists
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +57,7 @@ import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.DetailHeader
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.FieldValueChip
+import com.rainyday.saveableapp.ui.components.LinkPreviewCard
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -263,7 +263,6 @@ private fun ItemRow(
     onClick: () -> Unit,
     dragHandle: @Composable () -> Modifier
 ) {
-    val context = LocalContext.current
     Card(
         onClick = onClick,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -307,20 +306,11 @@ private fun ItemRow(
                     )
                 }
                 if (!item.url.isNullOrBlank()) {
-                    Text(
-                        text = item.url,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        textDecoration = TextDecoration.Underline,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    LinkPreviewCard(
+                        url = item.url,
                         modifier = Modifier
-                            .padding(top = 2.dp)
-                            .clickable {
-                                runCatching {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(item.url)))
-                                }
-                            }
+                            .fillMaxWidth()
+                            .padding(top = 6.dp)
                     )
                 }
                 if (fieldChips.isNotEmpty()) {

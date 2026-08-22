@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.rainyday.saveableapp.data.ai.FieldSpec
 import com.rainyday.saveableapp.data.ai.GroqRepository
 import com.rainyday.saveableapp.data.ai.SimpleListContext
+import com.rainyday.saveableapp.data.links.LinkPreviewRepository
 import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
 import com.rainyday.saveableapp.data.local.FieldTemplate
 import com.rainyday.saveableapp.data.local.SimpleListEntity
@@ -37,10 +38,12 @@ sealed interface AiListItemOutcome {
 private const val UNCATEGORIZED_LIST_NAME = "Uncategorized"
 private const val UNCATEGORIZED_LIST_COLOR_HEX = "#9E9E9E"
 private const val UNCATEGORIZED_LIST_ICON_KEY = "checklist"
+private val URL_REGEX = Regex("""https?://\S+""")
 
 class SimpleListsViewModel(
     private val repository: ListsRepository,
-    private val groqRepository: GroqRepository
+    private val groqRepository: GroqRepository,
+    private val linkPreviewRepository: LinkPreviewRepository
 ) : ViewModel() {
     // null while the first Room emission hasn't arrived yet, so the UI can tell "loading" apart from "empty".
     private val _lists = MutableStateFlow<List<SimpleListUiModel>?>(null)
@@ -99,6 +102,18 @@ class SimpleListsViewModel(
     suspend fun parseItemWithAi(input: String): AiListItemOutcome {
         _aiParsing.value = true
         return try {
+            // If the input contains a link, fetch the page/video's real title first (YouTube/Vimeo via
+            // oEmbed, other sites via Open Graph tags) — that's more reliable than having the model guess
+            // a title from the URL text alone, and it also helps the model itself pick the right list.
+            val detectedUrl = URL_REGEX.find(input)?.value?.trimEnd(')', '.', ',', ']', '"', '\'')
+            val resolvedPreview = detectedUrl?.let { runCatching { linkPreviewRepository.preview(it) }.getOrNull() }
+            val resolvedTitle = resolvedPreview?.title?.trim()?.takeIf { it.isNotBlank() }
+            val augmentedInput = if (resolvedTitle != null) {
+                "$input\n\n(The link's actual page title is: \"$resolvedTitle\")"
+            } else {
+                input
+            }
+
             val fieldsSnapshot = fieldsByListId.value
             val contexts = lists.value.orEmpty().map { entry ->
                 SimpleListContext(
@@ -106,7 +121,7 @@ class SimpleListsViewModel(
                     fields = fieldsSnapshot[entry.list.id].orEmpty().map { FieldSpec(it.name, it.type) }
                 )
             }
-            val result = groqRepository.parseListItem(input = input, existingLists = contexts)
+            val result = groqRepository.parseListItem(input = augmentedInput, existingLists = contexts)
             result.fold(
                 onSuccess = { parsed ->
                     val listId = resolveListId(parsed.listName)
@@ -114,9 +129,9 @@ class SimpleListsViewModel(
                     AiListItemOutcome.Success(
                         AiListItemDraft(
                             listId = listId,
-                            text = parsed.text,
+                            text = resolvedTitle ?: parsed.text,
                             note = parsed.note,
-                            url = parsed.url,
+                            url = parsed.url ?: detectedUrl,
                             fieldValues = fieldValues
                         )
                     )
