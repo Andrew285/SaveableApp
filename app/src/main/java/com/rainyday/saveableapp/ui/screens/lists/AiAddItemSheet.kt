@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,7 +39,9 @@ import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
 import com.rainyday.saveableapp.data.local.SimpleListEntity
 import com.rainyday.saveableapp.ui.components.LinkPreviewCard
 import com.rainyday.saveableapp.ui.components.PillButtonFilled
+import com.rainyday.saveableapp.ui.components.SuggestedListChip
 import com.rainyday.saveableapp.ui.components.normalizeUrl
+import kotlinx.coroutines.launch
 
 /**
  * Confirmation sheet shown after AI parses a quick-add item string, so the user can review (and fix)
@@ -55,10 +58,13 @@ fun AiAddItemSheet(
     initialNote: String = "",
     initialUrl: String = "",
     initialFieldValues: Map<Long, String> = emptyMap(),
+    suggestedNewListName: String? = null,
+    onCreateSuggestedList: (suspend (String) -> Long)? = null,
     onDismiss: () -> Unit,
     onSave: (listId: Long, text: String, note: String?, url: String?, fieldValues: Map<Long, String>) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     var listId by remember { mutableStateOf(initialListId) }
     var text by remember { mutableStateOf(initialText) }
     var note by remember { mutableStateOf(initialNote) }
@@ -66,6 +72,7 @@ fun AiAddItemSheet(
     var showListMenu by remember { mutableStateOf(false) }
     val fieldValues = remember { mutableStateMapOf<Long, String>().apply { putAll(initialFieldValues) } }
     var datePickerFieldId by remember { mutableStateOf<Long?>(null) }
+    var suggestionDismissed by remember { mutableStateOf(false) }
     val currentFields = fieldsByListId[listId].orEmpty()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -121,6 +128,22 @@ fun AiAddItemSheet(
                             }
                         )
                     }
+                }
+                if (suggestedNewListName != null && !suggestionDismissed && onCreateSuggestedList != null) {
+                    SuggestedListChip(
+                        suggestedName = suggestedNewListName,
+                        onCreateAndUse = {
+                            scope.launch {
+                                // A brand-new list has no custom fields yet, so any field values entered
+                                // for the previously selected list no longer apply.
+                                fieldValues.clear()
+                                listId = onCreateSuggestedList(suggestedNewListName)
+                                suggestionDismissed = true
+                            }
+                        },
+                        onDismiss = { suggestionDismissed = true },
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
 

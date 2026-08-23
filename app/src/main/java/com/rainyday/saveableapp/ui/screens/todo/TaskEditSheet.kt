@@ -33,23 +33,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.rainyday.saveableapp.data.local.Priority
+import com.rainyday.saveableapp.data.local.RecurrenceRule
 import com.rainyday.saveableapp.data.local.TagEntity
 import com.rainyday.saveableapp.data.local.TodoListEntity
 import com.rainyday.saveableapp.ui.components.ColorPickerRow
 import com.rainyday.saveableapp.ui.components.PillButtonDanger
 import com.rainyday.saveableapp.ui.components.PillButtonFilled
 import com.rainyday.saveableapp.ui.components.SegmentedPillRow
+import com.rainyday.saveableapp.ui.components.SuggestedListChip
 import com.rainyday.saveableapp.ui.components.TagChip
 import com.rainyday.saveableapp.ui.components.parseHexColor
 import com.rainyday.saveableapp.ui.theme.AccentColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -62,13 +66,26 @@ fun TaskEditSheet(
     initialDueDate: Long? = null,
     initialColorHex: String? = null,
     initialTagIds: Set<Long> = emptySet(),
+    initialRecurrence: RecurrenceRule = RecurrenceRule.NONE,
+    suggestedNewListName: String? = null,
+    onCreateSuggestedList: (suspend (String) -> Long)? = null,
     availableTags: List<TagEntity>,
     onCreateTag: (name: String, colorHex: String) -> Unit,
     onDismiss: () -> Unit,
-    onSave: (listId: Long, title: String, notes: String?, priority: Priority, dueDate: Long?, colorHex: String?, tagIds: List<Long>) -> Unit,
+    onSave: (
+        listId: Long,
+        title: String,
+        notes: String?,
+        priority: Priority,
+        dueDate: Long?,
+        colorHex: String?,
+        tagIds: List<Long>,
+        recurrence: RecurrenceRule
+    ) -> Unit,
     onDelete: (() -> Unit)? = null
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     var listId by remember { mutableStateOf(initialListId) }
     var title by remember { mutableStateOf(initialTitle) }
     var notes by remember { mutableStateOf(initialNotes) }
@@ -76,9 +93,11 @@ fun TaskEditSheet(
     var dueDate by remember { mutableStateOf(initialDueDate) }
     var colorHex by remember { mutableStateOf(initialColorHex) }
     var selectedTagIds by remember { mutableStateOf(initialTagIds) }
+    var recurrence by remember { mutableStateOf(initialRecurrence) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showListMenu by remember { mutableStateOf(false) }
     var newTagName by remember { mutableStateOf("") }
+    var suggestionDismissed by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -126,6 +145,19 @@ fun TaskEditSheet(
                         }
                     }
                 }
+                if (suggestedNewListName != null && !suggestionDismissed && onCreateSuggestedList != null) {
+                    SuggestedListChip(
+                        suggestedName = suggestedNewListName,
+                        onCreateAndUse = {
+                            scope.launch {
+                                listId = onCreateSuggestedList(suggestedNewListName)
+                                suggestionDismissed = true
+                            }
+                        },
+                        onDismiss = { suggestionDismissed = true },
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
             }
 
             SectionLabel("// PRIORITY LEVEL")
@@ -135,6 +167,14 @@ fun TaskEditSheet(
                 onSelect = { priority = it },
                 label = { it.label() },
                 accentColor = { parseHexColor(it.accentHex()) }
+            )
+
+            SectionLabel("// REPEATS")
+            SegmentedPillRow(
+                options = RecurrenceRule.entries,
+                selected = recurrence,
+                onSelect = { recurrence = it },
+                label = { it.label() }
             )
 
             SectionLabel("// DEADLINE")
@@ -211,7 +251,16 @@ fun TaskEditSheet(
                     text = "Save",
                     enabled = title.isNotBlank() && listId != 0L,
                     onClick = {
-                        onSave(listId, title.trim(), notes.trim().ifBlank { null }, priority, dueDate, colorHex, selectedTagIds.toList())
+                        onSave(
+                            listId,
+                            title.trim(),
+                            notes.trim().ifBlank { null },
+                            priority,
+                            dueDate,
+                            colorHex,
+                            selectedTagIds.toList(),
+                            recurrence
+                        )
                     },
                     modifier = Modifier.weight(1f)
                 )

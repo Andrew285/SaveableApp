@@ -58,6 +58,17 @@ class SimpleListItemViewModel(
 
     suspend fun restoreItem(snapshot: SimpleListItemSnapshot) = repository.restoreItemSnapshot(snapshot)
 
+    suspend fun bulkDeleteWithUndo(items: List<SimpleListItemEntity>): List<SimpleListItemSnapshot> =
+        items.map { repository.deleteItemWithSnapshot(it) }
+
+    suspend fun restoreItems(snapshot: List<SimpleListItemSnapshot>) {
+        snapshot.forEach { repository.restoreItemSnapshot(it) }
+    }
+
+    fun bulkSetChecked(items: List<SimpleListItemEntity>, checked: Boolean) {
+        viewModelScope.launch { items.forEach { repository.setItemChecked(it, checked) } }
+    }
+
     fun setChecked(item: SimpleListItemEntity, checked: Boolean) {
         viewModelScope.launch { repository.setItemChecked(item, checked) }
     }

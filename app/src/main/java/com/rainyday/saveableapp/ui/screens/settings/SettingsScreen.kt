@@ -41,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -66,7 +67,12 @@ fun SettingsScreen() {
     val viewModel: SettingsViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                SettingsViewModel(container.preferencesRepository, container.backupRepository, container.driveBackupRepository)
+                SettingsViewModel(
+                    container.preferencesRepository,
+                    container.backupRepository,
+                    container.driveBackupRepository,
+                    container.autoBackupScheduler
+                )
             }
         }
     )
@@ -78,6 +84,7 @@ fun SettingsScreen() {
     val appPinIsSet by viewModel.appPinIsSet.collectAsState()
     val driveLastBackupAt by viewModel.driveLastBackupAt.collectAsState()
     val groqApiKey by viewModel.groqApiKey.collectAsState()
+    val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsState()
 
     var showPinSetup by remember { mutableStateOf(false) }
     var apiKeyInput by remember(groqApiKey) { mutableStateOf(groqApiKey.orEmpty()) }
@@ -270,6 +277,19 @@ fun SettingsScreen() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Automatic daily backup",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(checked = autoBackupEnabled, onCheckedChange = viewModel::setAutoBackupEnabled)
+                    }
+                    Row(
                         modifier = Modifier.padding(top = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -296,6 +316,7 @@ fun SettingsScreen() {
                         onClick = {
                             viewModel.driveBackupRepository.signOut()
                             driveAccount = null
+                            if (autoBackupEnabled) viewModel.setAutoBackupEnabled(false)
                         },
                         modifier = Modifier.padding(top = 4.dp)
                     ) { Text("Sign out") }

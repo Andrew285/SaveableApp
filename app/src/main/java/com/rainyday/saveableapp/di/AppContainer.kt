@@ -11,6 +11,8 @@ import com.rainyday.saveableapp.data.repository.FlashCardsRepository
 import com.rainyday.saveableapp.data.repository.InfoRepository
 import com.rainyday.saveableapp.data.repository.ListsRepository
 import com.rainyday.saveableapp.data.repository.TodoRepository
+import com.rainyday.saveableapp.data.scheduling.AutoBackupScheduler
+import com.rainyday.saveableapp.data.scheduling.TaskReminderScheduler
 
 class AppContainer(context: Context) {
     private val database by lazy { AppDatabase.getInstance(context) }
@@ -40,11 +42,15 @@ class AppContainer(context: Context) {
 
     val groqRepository by lazy { GroqRepository(preferencesRepository) }
 
-    val linkPreviewRepository by lazy { LinkPreviewRepository() }
+    val linkPreviewRepository by lazy { LinkPreviewRepository(database.linkPreviewDao()) }
 
     val backupRepository by lazy { BackupRepository(database, database.backupDao()) }
 
     val driveBackupRepository by lazy {
         DriveBackupRepository(context.applicationContext, backupRepository, preferencesRepository)
     }
+
+    val taskReminderScheduler by lazy { TaskReminderScheduler(context.applicationContext) }
+
+    val autoBackupScheduler by lazy { AutoBackupScheduler(context.applicationContext) }
 }

@@ -23,11 +23,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.Card
@@ -83,7 +86,12 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
     val viewModel: TasksViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                TasksViewModel(container.todoRepository, container.preferencesRepository, container.groqRepository)
+                TasksViewModel(
+                    container.todoRepository,
+                    container.preferencesRepository,
+                    container.groqRepository,
+                    container.taskReminderScheduler
+                )
             }
         }
     )
@@ -106,8 +114,20 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
     var showCreateListDialog by remember { mutableStateOf(false) }
     var listPendingEdit by remember { mutableStateOf<TodoListEntity?>(null) }
     val collapsedListIds = remember { mutableStateMapOf<Long, Boolean>() }
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedTaskIds by remember { mutableStateOf(emptySet<Long>()) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    fun toggleSelected(id: Long) {
+        selectedTaskIds = if (id in selectedTaskIds) selectedTaskIds - id else selectedTaskIds + id
+        if (selectedTaskIds.isEmpty()) selectionMode = false
+    }
+
+    fun clearSelection() {
+        selectionMode = false
+        selectedTaskIds = emptySet()
+    }
 
     var quickAddText by remember { mutableStateOf("") }
 
@@ -139,6 +159,34 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
                             )
                         }
                         item {
+                            if (selectionMode) {
+                                val selectedItems = currentGroups.flatMap { it.tasks }
+                                    .filter { it.task.id in selectedTaskIds }
+                                SelectionActionBar(
+                                    count = selectedTaskIds.size,
+                                    availableLists = lists,
+                                    onMarkDone = {
+                                        viewModel.bulkSetDone(selectedItems, true)
+                                        clearSelection()
+                                    },
+                                    onMoveToList = { listId ->
+                                        viewModel.bulkMoveToList(selectedItems, listId)
+                                        clearSelection()
+                                    },
+                                    onDelete = {
+                                        clearSelection()
+                                        scope.launch {
+                                            snackbarHostState.showUndoableDelete(
+                                                message = "Deleted ${selectedItems.size} tasks",
+                                                delete = { viewModel.bulkDeleteWithUndo(selectedItems) },
+                                                restore = { viewModel.restoreTasks(it) }
+                                            )
+                                        }
+                                    },
+                                    onClose = { clearSelection() }
+                                )
+                                return@item
+                            }
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -218,8 +266,16 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
                                 items(group.tasks, key = { "task-${it.task.id}" }) { item ->
                                     TaskRow(
                                         item = item,
-                                        onToggleDone = { viewModel.setDone(item.task, it) },
-                                        onClick = { taskPendingEdit = group.list.id to item },
+                                        selectionMode = selectionMode,
+                                        selected = item.task.id in selectedTaskIds,
+                                        onToggleDone = { viewModel.setDone(item.task, it, item.tags.map { tag -> tag.id }) },
+                                        onClick = {
+                                            if (selectionMode) toggleSelected(item.task.id) else taskPendingEdit = group.list.id to item
+                                        },
+                                        onLongClick = {
+                                            selectionMode = true
+                                            toggleSelected(item.task.id)
+                                        },
                                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
                                     )
                                 }
@@ -265,11 +321,14 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
             initialPriority = draft?.priority ?: com.rainyday.saveableapp.data.local.Priority.MEDIUM,
             initialDueDate = draft?.dueDate,
             initialTagIds = draft?.tagIds?.toSet() ?: emptySet(),
+            initialRecurrence = draft?.recurrence ?: com.rainyday.saveableapp.data.local.RecurrenceRule.NONE,
+            suggestedNewListName = draft?.suggestedNewListName,
+            onCreateSuggestedList = viewModel::createListAndSelect,
             availableTags = tags,
             onCreateTag = viewModel::createTag,
             onDismiss = { showAddSheet = false; quickAddTitle = ""; aiDraft = null },
-            onSave = { listId, title, notes, priority, dueDate, colorHex, tagIds ->
-                viewModel.createTask(listId, title, notes, priority, dueDate, colorHex, tagIds)
+            onSave = { listId, title, notes, priority, dueDate, colorHex, tagIds, recurrence ->
+                viewModel.createTask(listId, title, notes, priority, dueDate, colorHex, tagIds, recurrence)
                 showAddSheet = false
                 quickAddTitle = ""
                 aiDraft = null
@@ -287,11 +346,12 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
             initialDueDate = item.task.dueDate,
             initialColorHex = item.task.colorHex,
             initialTagIds = item.tags.map { it.id }.toSet(),
+            initialRecurrence = item.task.recurrence,
             availableTags = tags,
             onCreateTag = viewModel::createTag,
             onDismiss = { taskPendingEdit = null },
-            onSave = { newListId, title, notes, priority, dueDate, colorHex, tagIds ->
-                viewModel.updateTask(item.task, newListId, title, notes, priority, dueDate, colorHex, tagIds)
+            onSave = { newListId, title, notes, priority, dueDate, colorHex, tagIds, recurrence ->
+                viewModel.updateTask(item.task, newListId, title, notes, priority, dueDate, colorHex, tagIds, recurrence)
                 taskPendingEdit = null
             },
             onDelete = {
@@ -406,6 +466,58 @@ private fun TaskGroupHeader(
 }
 
 @Composable
+private fun SelectionActionBar(
+    count: Int,
+    availableLists: List<TodoListEntity>,
+    onMarkDone: () -> Unit,
+    onMoveToList: (Long) -> Unit,
+    onDelete: () -> Unit,
+    onClose: () -> Unit
+) {
+    var showMoveMenu by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onClose) {
+            Icon(Icons.Filled.Close, contentDescription = "Cancel selection")
+        }
+        Text(
+            text = "$count selected",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 4.dp)
+        )
+        IconButton(onClick = onMarkDone) {
+            Icon(Icons.Filled.Check, contentDescription = "Mark done")
+        }
+        Box {
+            IconButton(onClick = { showMoveMenu = true }, enabled = availableLists.isNotEmpty()) {
+                Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move to list")
+            }
+            DropdownMenu(expanded = showMoveMenu, onDismissRequest = { showMoveMenu = false }) {
+                availableLists.forEach { list ->
+                    DropdownMenuItem(
+                        text = { Text(list.name) },
+                        onClick = {
+                            showMoveMenu = false
+                            onMoveToList(list.id)
+                        }
+                    )
+                }
+            }
+        }
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Filled.Delete, contentDescription = "Delete selected")
+        }
+    }
+}
+
+@Composable
 private fun QuickAddBar(text: String, onTextChange: (String) -> Unit, busy: Boolean = false, onSubmit: () -> Unit) {
     Row(
         modifier = Modifier
@@ -504,11 +616,15 @@ private fun ArchivedTasksSheet(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun TaskRow(
     item: com.rainyday.saveableapp.data.local.TaskWithTags,
     onToggleDone: (Boolean) -> Unit,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val task = item.task
@@ -516,10 +632,17 @@ private fun TaskRow(
     val accent = parseHexColor(accentHex)
 
     Card(
-        onClick = onClick,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = modifier.fillMaxWidth()
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
         Row(
             modifier = Modifier
@@ -527,7 +650,10 @@ private fun TaskRow(
                 .padding(vertical = 8.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(checked = task.isDone, onCheckedChange = onToggleDone)
+            Checkbox(
+                checked = if (selectionMode) selected else task.isDone,
+                onCheckedChange = if (selectionMode) { _ -> onClick() } else onToggleDone
+            )
             Column(modifier = Modifier.padding(start = 4.dp)) {
                 Text(
                     text = task.title,
@@ -556,6 +682,14 @@ private fun TaskRow(
                             text = formatDate(task.dueDate),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (task.recurrence != com.rainyday.saveableapp.data.local.RecurrenceRule.NONE) {
+                        Icon(
+                            imageVector = Icons.Filled.Repeat,
+                            contentDescription = task.recurrence.label(),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }

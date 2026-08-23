@@ -1,6 +1,7 @@
 package com.rainyday.saveableapp.data.repository
 
 import com.rainyday.saveableapp.data.local.Priority
+import com.rainyday.saveableapp.data.local.RecurrenceRule
 import com.rainyday.saveableapp.data.local.TagDao
 import com.rainyday.saveableapp.data.local.TagEntity
 import com.rainyday.saveableapp.data.local.TaskTagCrossRef
@@ -9,6 +10,7 @@ import com.rainyday.saveableapp.data.local.TodoListDao
 import com.rainyday.saveableapp.data.local.TodoListEntity
 import com.rainyday.saveableapp.data.local.TodoTaskDao
 import com.rainyday.saveableapp.data.local.TodoTaskEntity
+import java.util.Calendar
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -66,7 +68,8 @@ class TodoRepository(
         priority: Priority,
         dueDate: Long?,
         colorHex: String?,
-        tagIds: List<Long>
+        tagIds: List<Long>,
+        recurrence: RecurrenceRule = RecurrenceRule.NONE
     ): Long {
         val id = taskDao.insert(
             TodoTaskEntity(
@@ -76,7 +79,8 @@ class TodoRepository(
                 priority = priority,
                 dueDate = dueDate,
                 colorHex = colorHex,
-                createdAt = System.currentTimeMillis()
+                createdAt = System.currentTimeMillis(),
+                recurrence = recurrence
             )
         )
         tagIds.forEach { tagDao.insertCrossRef(TaskTagCrossRef(id, it)) }
@@ -89,13 +93,45 @@ class TodoRepository(
         tagIds.forEach { tagDao.insertCrossRef(TaskTagCrossRef(task.id, it)) }
     }
 
-    suspend fun setTaskDone(task: TodoTaskEntity, isDone: Boolean) {
+    /**
+     * Marks [task] done/undone. If it's being completed and has a [RecurrenceRule], also spawns the
+     * next occurrence (same fields and [tagIds], due date advanced by the rule) so it's ready to go —
+     * returns that new occurrence so the caller can (re)schedule its reminder, or null if none spawned.
+     */
+    suspend fun setTaskDone(task: TodoTaskEntity, isDone: Boolean, tagIds: List<Long> = emptyList()): TodoTaskEntity? {
         taskDao.update(
             task.copy(
                 isDone = isDone,
                 completedAt = if (isDone) System.currentTimeMillis() else null
             )
         )
+        if (isDone && task.recurrence != RecurrenceRule.NONE) {
+            val nextTask = task.copy(
+                id = 0,
+                isDone = false,
+                completedAt = null,
+                isArchived = false,
+                dueDate = nextOccurrence(task.dueDate, task.recurrence),
+                createdAt = System.currentTimeMillis()
+            )
+            val nextId = taskDao.insert(nextTask)
+            tagIds.forEach { tagDao.insertCrossRef(TaskTagCrossRef(nextId, it)) }
+            return nextTask.copy(id = nextId)
+        }
+        return null
+    }
+
+    /** Advances [baseMillis] (or now, if there was no due date) by one [rule] step. */
+    private fun nextOccurrence(baseMillis: Long?, rule: RecurrenceRule): Long {
+        val calendar = Calendar.getInstance().apply { timeInMillis = baseMillis ?: System.currentTimeMillis() }
+        when (rule) {
+            RecurrenceRule.DAILY -> calendar.add(Calendar.DAY_OF_MONTH, 1)
+            RecurrenceRule.WEEKLY -> calendar.add(Calendar.WEEK_OF_YEAR, 1)
+            RecurrenceRule.MONTHLY -> calendar.add(Calendar.MONTH, 1)
+            RecurrenceRule.YEARLY -> calendar.add(Calendar.YEAR, 1)
+            RecurrenceRule.NONE -> Unit
+        }
+        return calendar.timeInMillis
     }
 
     suspend fun deleteTask(task: TodoTaskEntity) = taskDao.delete(task)

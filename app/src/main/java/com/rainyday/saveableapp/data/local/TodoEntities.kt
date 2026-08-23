@@ -45,7 +45,8 @@ data class TodoTaskEntity(
     val position: Int = 0,
     val createdAt: Long,
     val completedAt: Long? = null,
-    val isArchived: Boolean = false
+    val isArchived: Boolean = false,
+    val recurrence: RecurrenceRule = RecurrenceRule.NONE
 )
 
 @Serializable

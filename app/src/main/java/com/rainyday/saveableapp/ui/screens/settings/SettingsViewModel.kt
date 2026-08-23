@@ -9,6 +9,7 @@ import com.rainyday.saveableapp.data.drive.DriveBackupRepository
 import com.rainyday.saveableapp.data.prefs.PreferencesRepository
 import com.rainyday.saveableapp.data.prefs.ThemeMode
 import com.rainyday.saveableapp.data.repository.BackupRepository
+import com.rainyday.saveableapp.data.scheduling.AutoBackupScheduler
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -17,7 +18,8 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val preferencesRepository: PreferencesRepository,
     private val backupRepository: BackupRepository,
-    val driveBackupRepository: DriveBackupRepository
+    val driveBackupRepository: DriveBackupRepository,
+    private val autoBackupScheduler: AutoBackupScheduler
 ) : ViewModel() {
     val themeMode: StateFlow<ThemeMode> = preferencesRepository.themeMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeMode.SYSTEM)
@@ -40,8 +42,17 @@ class SettingsViewModel(
     val groqApiKey: StateFlow<String?> = preferencesRepository.groqApiKey
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val autoBackupEnabled: StateFlow<Boolean> = preferencesRepository.autoBackupEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun setGroqApiKey(key: String) {
         viewModelScope.launch { preferencesRepository.setGroqApiKey(key) }
+    }
+
+    /** Toggles the daily background Drive backup and (de)schedules the alarm that drives it. */
+    fun setAutoBackupEnabled(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setAutoBackupEnabled(enabled) }
+        if (enabled) autoBackupScheduler.schedule() else autoBackupScheduler.cancel()
     }
 
     fun setThemeMode(mode: ThemeMode) {

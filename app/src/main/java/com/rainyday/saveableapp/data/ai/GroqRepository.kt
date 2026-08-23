@@ -2,6 +2,7 @@ package com.rainyday.saveableapp.data.ai
 
 import com.rainyday.saveableapp.data.local.FieldType
 import com.rainyday.saveableapp.data.local.Priority
+import com.rainyday.saveableapp.data.local.RecurrenceRule
 import com.rainyday.saveableapp.data.prefs.PreferencesRepository
 import java.net.HttpURLConnection
 import java.net.URL
@@ -32,7 +33,10 @@ data class ParsedTask(
     val priority: Priority?,
     val dueDate: Long?,
     val listName: String?,
-    val tagNames: List<String>
+    val tagNames: List<String>,
+    val recurrence: RecurrenceRule,
+    /** A brand-new list name the model suggests when none of the existing lists fit, or null. */
+    val suggestedNewListName: String?
 )
 
 /** Fields extracted from free-form simple-list item text. Any field the model can't determine is left null. */
@@ -42,7 +46,9 @@ data class ParsedListItem(
     val url: String?,
     val listName: String?,
     /** Custom field values keyed by the field's own name (as passed into [GroqRepository.parseListItem]). */
-    val fieldValues: Map<String, String>
+    val fieldValues: Map<String, String>,
+    /** A brand-new list name the model suggests when none of the existing lists fit, or null. */
+    val suggestedNewListName: String?
 )
 
 /** One custom field a simple list defines, e.g. "Rating" (RATING). */
@@ -128,6 +134,10 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
         - "note": a short additional detail mentioned in the text, or null if there is none
         - "url": a URL mentioned in the text, or null if none is present
         - "list": the single best-matching list name from this exact set of existing lists: [$listNames], or null if none of them clearly fit
+        - "suggested_list": ONLY set this when "list" above is null because nothing existing fits — a
+          short new list name you'd propose creating for this item (e.g. "Recipes", "Wishlist"), based
+          on the item's real category. Null whenever "list" is non-null, or when the item is too vague
+          to suggest a sensible category.
 
         If the item text is just a URL (or a URL plus very little else), use the URL itself — its
         domain, path, and slug — plus what you know about that site to infer a real, human-readable
@@ -183,6 +193,16 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
           or time reference at all, "due_date" MUST be null — never invent one.
 
         - "list": the single best-matching list name from this exact set of existing lists: [${existingLists.joinToString()}], or null if none of them clearly fit
+        - "suggested_list": ONLY set this when "list" above is null because nothing existing fits — a
+          short new list name you'd propose creating for this task (e.g. "Errands", "Bills"), based on
+          the task's real category. Null whenever "list" is non-null, or when the task is too vague to
+          suggest a sensible category.
+
+        - "recurrence": one of "DAILY", "WEEKLY", "MONTHLY", "YEARLY", or null if the task doesn't
+          repeat. Recognize phrases like "every day"/"щодня" -> DAILY, "every Monday"/"щопонеділка" or
+          any single specific weekday -> WEEKLY, "every month"/"щомісяця" -> MONTHLY, "every year"/
+          "щороку" -> YEARLY. Only set this when the text clearly implies repetition — a one-off task
+          with just a due date is not recurring.
 
         - "tags": a JSON array of 1-3 short lowercase topic tags describing what the task is actually about.
           Tags are expected on most tasks. First check whether an existing tag already means the same
@@ -262,13 +282,18 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
         val resolvedPriority = priority?.trim()?.uppercase(Locale.US)
             ?.let { p -> runCatching { Priority.valueOf(p) }.getOrNull() }
         val resolvedDueDate = dueDate?.let { parseIsoDate(it) }
+        val resolvedRecurrence = recurrence?.trim()?.uppercase(Locale.US)
+            ?.let { r -> runCatching { RecurrenceRule.valueOf(r) }.getOrNull() }
+            ?: RecurrenceRule.NONE
         return ParsedTask(
             title = title?.trim().takeUnless { it.isNullOrBlank() } ?: fallbackTitle,
             notes = notes?.trim()?.takeIf { it.isNotBlank() },
             priority = resolvedPriority,
             dueDate = resolvedDueDate,
             listName = list?.trim()?.takeIf { it.isNotBlank() },
-            tagNames = tags.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+            tagNames = tags.map { it.trim() }.filter { it.isNotBlank() }.distinct(),
+            recurrence = resolvedRecurrence,
+            suggestedNewListName = suggestedList?.trim()?.takeIf { it.isNotBlank() }
         )
     }
 
@@ -297,7 +322,8 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
             note = note?.trim()?.takeIf { it.isNotBlank() },
             url = url?.trim()?.takeIf { it.isNotBlank() },
             listName = resolvedListName,
-            fieldValues = resolvedFieldValues
+            fieldValues = resolvedFieldValues,
+            suggestedNewListName = suggestedList?.trim()?.takeIf { it.isNotBlank() }
         )
     }
 
@@ -326,6 +352,8 @@ private data class ParsedTaskDto(
     val priority: String? = null,
     @SerialName("due_date") val dueDate: String? = null,
     val list: String? = null,
+    @SerialName("suggested_list") val suggestedList: String? = null,
+    val recurrence: String? = null,
     val tags: List<String> = emptyList()
 )
 
@@ -335,6 +363,7 @@ private data class ParsedListItemDto(
     val note: String? = null,
     val url: String? = null,
     val list: String? = null,
+    @SerialName("suggested_list") val suggestedList: String? = null,
     val fields: List<ParsedFieldDto> = emptyList()
 )
 

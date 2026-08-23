@@ -11,6 +11,8 @@ import com.rainyday.saveableapp.data.local.FieldTemplate
 import com.rainyday.saveableapp.data.local.SimpleListEntity
 import com.rainyday.saveableapp.data.repository.ListsRepository
 import com.rainyday.saveableapp.data.repository.SimpleListSnapshot
+import com.rainyday.saveableapp.ui.components.IconCatalog
+import com.rainyday.saveableapp.ui.theme.AccentColors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +29,9 @@ data class AiListItemDraft(
     val text: String,
     val note: String?,
     val url: String?,
-    val fieldValues: Map<Long, String>
+    val fieldValues: Map<Long, String>,
+    /** A brand-new list name the model suggested, if it didn't match any existing list — null otherwise. */
+    val suggestedNewListName: String?
 )
 
 sealed interface AiListItemOutcome {
@@ -86,6 +90,10 @@ class SimpleListsViewModel(
         }
     }
 
+    /** Creates a new list (e.g. from an AI suggestion) and returns its id so the caller can select it. */
+    suspend fun createListAndSelect(name: String): Long =
+        repository.createList(name, IconCatalog.defaultKey, AccentColors.palette.random(), showCheckbox = true)
+
     suspend fun deleteListWithUndo(list: SimpleListEntity): SimpleListSnapshot =
         repository.deleteListWithSnapshot(list)
 
@@ -126,13 +134,16 @@ class SimpleListsViewModel(
                 onSuccess = { parsed ->
                     val listId = resolveListId(parsed.listName)
                     val fieldValues = resolveFieldValues(listId, parsed.fieldValues, fieldsSnapshot)
+                    val suggestedNewListName = parsed.suggestedNewListName
+                        ?.takeIf { name -> lists.value.orEmpty().none { it.list.name.equals(name, ignoreCase = true) } }
                     AiListItemOutcome.Success(
                         AiListItemDraft(
                             listId = listId,
                             text = resolvedTitle ?: parsed.text,
                             note = parsed.note,
                             url = parsed.url ?: detectedUrl,
-                            fieldValues = fieldValues
+                            fieldValues = fieldValues,
+                            suggestedNewListName = suggestedNewListName
                         )
                     )
                 },

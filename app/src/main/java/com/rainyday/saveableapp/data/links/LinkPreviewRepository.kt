@@ -1,5 +1,7 @@
 package com.rainyday.saveableapp.data.links
 
+import com.rainyday.saveableapp.data.local.LinkPreviewCacheEntity
+import com.rainyday.saveableapp.data.local.LinkPreviewDao
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -15,6 +17,7 @@ import kotlinx.serialization.json.Json
 private const val USER_AGENT = "Mozilla/5.0 (Android) SaveableApp-LinkPreview"
 private const val MAX_HTML_BYTES = 65_536
 private const val MAX_OEMBED_BYTES = 8_192
+private const val CACHE_TTL_MILLIS = 30L * 24 * 60 * 60 * 1000 // 30 days
 
 /** Title and thumbnail image URL resolved for a link, for showing a static preview card. */
 data class LinkPreview(val title: String?, val imageUrl: String?)
@@ -23,33 +26,54 @@ data class LinkPreview(val title: String?, val imageUrl: String?)
 fun linkHostLabel(url: String): String? = runCatching { URL(url).host?.removePrefix("www.") }.getOrNull()
 
 /**
- * Resolves a lightweight title + thumbnail for a URL, for a static link-preview card. Uses oEmbed for
- * known video providers (YouTube, Vimeo) and falls back to scraping Open Graph meta tags for everything
- * else. Results are cached in memory for the process lifetime — repeated lookups of the same URL are free.
+ * Resolves a lightweight title + thumbnail for a URL, for a static link-preview card. Prefers a site's
+ * own oEmbed endpoint — a couple of well-known ones (YouTube, Vimeo) plus whatever a page advertises via
+ * `<link rel="alternate" type="application/json+oembed">` — and otherwise falls back to scraping Open
+ * Graph meta tags. Results persist in [LinkPreviewDao] (with an in-memory fast path on top) so a preview
+ * survives app restarts and isn't re-fetched on every scroll.
  */
-class LinkPreviewRepository {
+class LinkPreviewRepository(private val dao: LinkPreviewDao) {
     private val json = Json { ignoreUnknownKeys = true }
-    private val cache = ConcurrentHashMap<String, LinkPreview>()
+    private val memoryCache = ConcurrentHashMap<String, LinkPreview>()
 
     suspend fun preview(url: String): LinkPreview? = withContext(Dispatchers.IO) {
-        cache[url]?.let { return@withContext it }
+        memoryCache[url]?.let { return@withContext it }
+
+        val cached = dao.get(url)
+        if (cached != null && System.currentTimeMillis() - cached.fetchedAt < CACHE_TTL_MILLIS) {
+            val preview = LinkPreview(title = cached.title, imageUrl = cached.imageUrl)
+            memoryCache[url] = preview
+            return@withContext preview
+        }
+
         val result = runCatching { fetchPreview(url) }.getOrNull()
-        if (result != null) cache[url] = result
-        result
+        if (result != null) {
+            memoryCache[url] = result
+            dao.upsert(
+                LinkPreviewCacheEntity(
+                    url = url,
+                    title = result.title,
+                    imageUrl = result.imageUrl,
+                    fetchedAt = System.currentTimeMillis()
+                )
+            )
+        }
+        result ?: cached?.let { LinkPreview(title = it.title, imageUrl = it.imageUrl) }
     }
 
     private fun fetchPreview(url: String): LinkPreview {
-        oEmbedEndpoint(url)?.let { endpoint ->
-            val body = httpGetText(endpoint, MAX_OEMBED_BYTES)
-            val dto = body?.let { runCatching { json.decodeFromString<OEmbedResponseDto>(it) }.getOrNull() }
-            if (dto?.title != null || dto?.thumbnailUrl != null) {
-                return LinkPreview(title = dto?.title, imageUrl = dto?.thumbnailUrl)
-            }
-        }
-        return fetchOpenGraphPreview(url)
+        knownOEmbedEndpoint(url)?.let { endpoint -> fetchOEmbed(endpoint)?.let { return it } }
+
+        val html = httpGetText(url, MAX_HTML_BYTES)
+            ?: return LinkPreview(title = linkHostLabel(url), imageUrl = null)
+
+        discoverOEmbedEndpoint(html, url)?.let { endpoint -> fetchOEmbed(endpoint)?.let { return it } }
+
+        return parseOpenGraph(html, url)
     }
 
-    private fun oEmbedEndpoint(url: String): String? {
+    /** Hardcoded oEmbed endpoints for providers common enough to skip the discovery round-trip. */
+    private fun knownOEmbedEndpoint(url: String): String? {
         val host = runCatching { URL(url).host?.lowercase() }.getOrNull() ?: return null
         val encoded = URLEncoder.encode(url, "UTF-8")
         return when {
@@ -59,9 +83,28 @@ class LinkPreviewRepository {
         }
     }
 
-    private fun fetchOpenGraphPreview(url: String): LinkPreview {
-        val html = httpGetText(url, MAX_HTML_BYTES)
-            ?: return LinkPreview(title = linkHostLabel(url), imageUrl = null)
+    /** Finds an oEmbed discovery link (the standard `<link type="application/json+oembed">` tag) in [html]. */
+    private fun discoverOEmbedEndpoint(html: String, baseUrl: String): String? {
+        val typeThenHref = Regex(
+            "<link[^>]*type=[\"']application/json\\+oembed[\"'][^>]*href=[\"'](.*?)[\"']",
+            RegexOption.IGNORE_CASE
+        )
+        val hrefThenType = Regex(
+            "<link[^>]*href=[\"'](.*?)[\"'][^>]*type=[\"']application/json\\+oembed[\"']",
+            RegexOption.IGNORE_CASE
+        )
+        val href = typeThenHref.find(html)?.groupValues?.get(1) ?: hrefThenType.find(html)?.groupValues?.get(1)
+        return href?.let { resolveUrl(baseUrl, decodeHtmlEntities(it)) }
+    }
+
+    private fun fetchOEmbed(endpoint: String): LinkPreview? {
+        val body = httpGetText(endpoint, MAX_OEMBED_BYTES) ?: return null
+        val dto = runCatching { json.decodeFromString<OEmbedResponseDto>(body) }.getOrNull() ?: return null
+        if (dto.title == null && dto.thumbnailUrl == null) return null
+        return LinkPreview(title = dto.title, imageUrl = dto.thumbnailUrl)
+    }
+
+    private fun parseOpenGraph(html: String, url: String): LinkPreview {
         val ogTitle = metaContent(html, "og:title")
         val ogImage = metaContent(html, "og:image")
         val titleTag = Regex("<title[^>]*>(.*?)</title>", RegexOption.DOT_MATCHES_ALL)

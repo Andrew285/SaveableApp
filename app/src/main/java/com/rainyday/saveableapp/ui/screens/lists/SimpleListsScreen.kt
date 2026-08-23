@@ -211,6 +211,8 @@ fun SimpleListsScreen(
             initialNote = draft?.note.orEmpty(),
             initialUrl = draft?.url.orEmpty(),
             initialFieldValues = draft?.fieldValues.orEmpty(),
+            suggestedNewListName = draft?.suggestedNewListName,
+            onCreateSuggestedList = viewModel::createListAndSelect,
             onDismiss = { showAiReviewSheet = false; aiDraft = null },
             onSave = { listId, text, note, url, fieldValues ->
                 viewModel.createItem(listId, text, note, url, fieldValues)

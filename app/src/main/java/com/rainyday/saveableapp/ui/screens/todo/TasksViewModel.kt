@@ -4,12 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rainyday.saveableapp.data.ai.GroqRepository
 import com.rainyday.saveableapp.data.local.Priority
+import com.rainyday.saveableapp.data.local.RecurrenceRule
 import com.rainyday.saveableapp.data.local.TagEntity
 import com.rainyday.saveableapp.data.local.TaskWithTags
 import com.rainyday.saveableapp.data.local.TodoListEntity
 import com.rainyday.saveableapp.data.local.TodoTaskEntity
 import com.rainyday.saveableapp.data.prefs.PreferencesRepository
 import com.rainyday.saveableapp.data.repository.TodoRepository
+import com.rainyday.saveableapp.data.scheduling.TaskReminderScheduler
+import com.rainyday.saveableapp.ui.components.IconCatalog
 import com.rainyday.saveableapp.ui.theme.AccentColors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,7 +33,10 @@ data class AiTaskDraft(
     val notes: String?,
     val priority: Priority,
     val dueDate: Long?,
-    val tagIds: List<Long>
+    val tagIds: List<Long>,
+    val recurrence: RecurrenceRule,
+    /** A brand-new list name the model suggested, if it didn't match any existing list — null otherwise. */
+    val suggestedNewListName: String?
 )
 
 sealed interface AiParseOutcome {
@@ -45,7 +51,8 @@ private const val UNCATEGORIZED_LIST_ICON_KEY = "checklist"
 class TasksViewModel(
     private val repository: TodoRepository,
     private val preferencesRepository: PreferencesRepository,
-    private val groqRepository: GroqRepository
+    private val groqRepository: GroqRepository,
+    private val reminderScheduler: TaskReminderScheduler
 ) : ViewModel() {
     val lists: StateFlow<List<TodoListEntity>> = repository.observeLists()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -104,6 +111,8 @@ class TasksViewModel(
                 onSuccess = { parsed ->
                     val listId = resolveListId(parsed.listName)
                     val tagIds = parsed.tagNames.mapNotNull { resolveTagId(it) }
+                    val suggestedNewListName = parsed.suggestedNewListName
+                        ?.takeIf { name -> lists.value.none { it.name.equals(name, ignoreCase = true) } }
                     AiParseOutcome.Success(
                         AiTaskDraft(
                             listId = listId,
@@ -111,7 +120,9 @@ class TasksViewModel(
                             notes = parsed.notes,
                             priority = parsed.priority ?: Priority.MEDIUM,
                             dueDate = parsed.dueDate,
-                            tagIds = tagIds
+                            tagIds = tagIds,
+                            recurrence = parsed.recurrence,
+                            suggestedNewListName = suggestedNewListName
                         )
                     )
                 },
@@ -149,17 +160,66 @@ class TasksViewModel(
         _filter.value = value
     }
 
-    fun setDone(task: TodoTaskEntity, done: Boolean) {
-        viewModelScope.launch { repository.setTaskDone(task, done) }
+    fun setDone(task: TodoTaskEntity, done: Boolean, tagIds: List<Long> = emptyList()) {
+        viewModelScope.launch {
+            val spawned = repository.setTaskDone(task, done, tagIds)
+            if (done) {
+                reminderScheduler.cancel(task.id)
+                spawned?.let { reminderScheduler.schedule(it.id, it.title, it.dueDate) }
+            } else {
+                reminderScheduler.schedule(task.id, task.title, task.dueDate)
+            }
+        }
     }
 
     suspend fun deleteTaskWithUndo(task: TodoTaskEntity, tagIds: List<Long>): Pair<TodoTaskEntity, List<Long>> {
         repository.deleteTask(task)
+        reminderScheduler.cancel(task.id)
         return task to tagIds
     }
 
-    suspend fun restoreTask(snapshot: Pair<TodoTaskEntity, List<Long>>) =
+    suspend fun restoreTask(snapshot: Pair<TodoTaskEntity, List<Long>>) {
         repository.restoreTask(snapshot.first, snapshot.second)
+        reminderScheduler.schedule(snapshot.first.id, snapshot.first.title, snapshot.first.dueDate)
+    }
+
+    /** Deletes all of [items] and returns a snapshot [restoreTasks] can use to undo it. */
+    suspend fun bulkDeleteWithUndo(items: List<TaskWithTags>): List<Pair<TodoTaskEntity, List<Long>>> {
+        val snapshot = items.map { it.task to it.tags.map { tag -> tag.id } }
+        items.forEach {
+            repository.deleteTask(it.task)
+            reminderScheduler.cancel(it.task.id)
+        }
+        return snapshot
+    }
+
+    suspend fun restoreTasks(snapshot: List<Pair<TodoTaskEntity, List<Long>>>) {
+        snapshot.forEach {
+            repository.restoreTask(it.first, it.second)
+            reminderScheduler.schedule(it.first.id, it.first.title, it.first.dueDate)
+        }
+    }
+
+    /** Marks every task in [items] done/undone (recurring ones still spawn their next occurrence). */
+    fun bulkSetDone(items: List<TaskWithTags>, done: Boolean) {
+        viewModelScope.launch {
+            items.forEach { item ->
+                val spawned = repository.setTaskDone(item.task, done, item.tags.map { tag -> tag.id })
+                if (done) {
+                    reminderScheduler.cancel(item.task.id)
+                    spawned?.let { reminderScheduler.schedule(it.id, it.title, it.dueDate) }
+                } else {
+                    reminderScheduler.schedule(item.task.id, item.task.title, item.task.dueDate)
+                }
+            }
+        }
+    }
+
+    fun bulkMoveToList(items: List<TaskWithTags>, listId: Long) {
+        viewModelScope.launch {
+            items.forEach { repository.updateTask(it.task.copy(listId = listId), it.tags.map { tag -> tag.id }) }
+        }
+    }
 
     fun createTask(
         listId: Long,
@@ -168,11 +228,13 @@ class TasksViewModel(
         priority: Priority,
         dueDate: Long?,
         colorHex: String?,
-        tagIds: List<Long>
+        tagIds: List<Long>,
+        recurrence: RecurrenceRule = RecurrenceRule.NONE
     ) {
         viewModelScope.launch {
-            repository.createTask(listId, title, notes, priority, dueDate, colorHex, tagIds)
+            val id = repository.createTask(listId, title, notes, priority, dueDate, colorHex, tagIds, recurrence)
             preferencesRepository.setLastUsedTodoListId(listId)
+            reminderScheduler.schedule(id, title, dueDate)
         }
     }
 
@@ -184,16 +246,30 @@ class TasksViewModel(
         priority: Priority,
         dueDate: Long?,
         colorHex: String?,
-        tagIds: List<Long>
+        tagIds: List<Long>,
+        recurrence: RecurrenceRule = RecurrenceRule.NONE
     ) {
         viewModelScope.launch {
             repository.updateTask(
-                task.copy(listId = listId, title = title, notes = notes, priority = priority, dueDate = dueDate, colorHex = colorHex),
+                task.copy(
+                    listId = listId,
+                    title = title,
+                    notes = notes,
+                    priority = priority,
+                    dueDate = dueDate,
+                    colorHex = colorHex,
+                    recurrence = recurrence
+                ),
                 tagIds
             )
             preferencesRepository.setLastUsedTodoListId(listId)
+            reminderScheduler.schedule(task.id, title, dueDate)
         }
     }
+
+    /** Creates a new list (e.g. from an AI suggestion) and returns its id so the caller can select it. */
+    suspend fun createListAndSelect(name: String): Long =
+        repository.createList(name, AccentColors.palette.random(), IconCatalog.defaultKey)
 
     fun archiveAllCompleted() {
         viewModelScope.launch { repository.archiveAllCompleted() }

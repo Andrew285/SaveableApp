@@ -14,4 +14,10 @@ class Converters {
 
     @TypeConverter
     fun toFieldType(value: Int): FieldType = FieldType.entries.getOrElse(value) { FieldType.TEXT }
+
+    @TypeConverter
+    fun fromRecurrenceRule(rule: RecurrenceRule): Int = rule.ordinal
+
+    @TypeConverter
+    fun toRecurrenceRule(value: Int): RecurrenceRule = RecurrenceRule.entries.getOrElse(value) { RecurrenceRule.NONE }
 }

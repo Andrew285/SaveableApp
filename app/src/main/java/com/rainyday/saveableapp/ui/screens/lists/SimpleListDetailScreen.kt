@@ -1,8 +1,12 @@
 package com.rainyday.saveableapp.ui.screens.lists
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,13 +22,19 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,6 +61,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.rainyday.saveableapp.data.export.buildListCsv
+import com.rainyday.saveableapp.data.export.writeListPdf
 import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
 import com.rainyday.saveableapp.data.local.SimpleListItemEntity
 import com.rainyday.saveableapp.ui.appContainer
@@ -84,6 +96,31 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
     var itemPendingEdit by remember { mutableStateOf<SimpleListItemEntity?>(null) }
     var showFieldsManager by remember { mutableStateOf(false) }
     var quickAddText by remember { mutableStateOf("") }
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedItemIds by remember { mutableStateOf(emptySet<Long>()) }
+    var showExportMenu by remember { mutableStateOf(false) }
+
+    val csvExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) {
+            val csv = buildListCsv(items, fields, fieldValuesByItem)
+            context.contentResolver.openOutputStream(uri)?.use { it.write(csv.toByteArray(Charsets.UTF_8)) }
+        }
+    }
+    val pdfExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        if (uri != null) {
+            writeListPdf(context, uri, list?.name ?: "List", items, fields, fieldValuesByItem)
+        }
+    }
+
+    fun toggleSelected(id: Long) {
+        selectedItemIds = if (id in selectedItemIds) selectedItemIds - id else selectedItemIds + id
+        if (selectedItemIds.isEmpty()) selectionMode = false
+    }
+
+    fun clearSelection() {
+        selectionMode = false
+        selectedItemIds = emptySet()
+    }
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -92,29 +129,71 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } }) { padding ->
         Column(modifier = Modifier.padding(padding)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                DetailHeader(onBack = onBack, backLabel = "Lists", modifier = Modifier.weight(1f))
-                IconButton(onClick = { showFieldsManager = true }) {
-                    Icon(Icons.Filled.Tune, contentDescription = "Manage fields")
-                }
-                IconButton(onClick = {
-                    val text = buildString {
-                        appendLine(list?.name ?: "List")
-                        items.forEach { item ->
-                            if (showCheckbox) append(if (item.isChecked) "[x] " else "[ ] ")
-                            append(item.text)
-                            if (!item.note.isNullOrBlank()) append(" — ${item.note}")
-                            if (!item.url.isNullOrBlank()) append(" (${item.url})")
-                            appendLine()
+            if (selectionMode) {
+                val selectedItems = items.filter { it.id in selectedItemIds }
+                ItemSelectionActionBar(
+                    count = selectedItemIds.size,
+                    showCheckAction = showCheckbox,
+                    onCheck = { viewModel.bulkSetChecked(selectedItems, true); clearSelection() },
+                    onUncheck = { viewModel.bulkSetChecked(selectedItems, false); clearSelection() },
+                    onDelete = {
+                        clearSelection()
+                        scope.launch {
+                            snackbarHostState.showUndoableDelete(
+                                message = "Deleted ${selectedItems.size} items",
+                                delete = { viewModel.bulkDeleteWithUndo(selectedItems) },
+                                restore = { viewModel.restoreItems(it) }
+                            )
+                        }
+                    },
+                    onClose = { clearSelection() }
+                )
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    DetailHeader(onBack = onBack, backLabel = "Lists", modifier = Modifier.weight(1f))
+                    IconButton(onClick = { showFieldsManager = true }) {
+                        Icon(Icons.Filled.Tune, contentDescription = "Manage fields")
+                    }
+                    IconButton(onClick = {
+                        val text = buildString {
+                            appendLine(list?.name ?: "List")
+                            items.forEach { item ->
+                                if (showCheckbox) append(if (item.isChecked) "[x] " else "[ ] ")
+                                append(item.text)
+                                if (!item.note.isNullOrBlank()) append(" — ${item.note}")
+                                if (!item.url.isNullOrBlank()) append(" (${item.url})")
+                                appendLine()
+                            }
+                        }
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Share list"))
+                    }) {
+                        Icon(Icons.Filled.Share, contentDescription = "Share")
+                    }
+                    Box {
+                        IconButton(onClick = { showExportMenu = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Export")
+                        }
+                        DropdownMenu(expanded = showExportMenu, onDismissRequest = { showExportMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Export as CSV") },
+                                onClick = {
+                                    showExportMenu = false
+                                    csvExportLauncher.launch("${list?.name ?: "list"}.csv")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Export as PDF") },
+                                onClick = {
+                                    showExportMenu = false
+                                    pdfExportLauncher.launch("${list?.name ?: "list"}.pdf")
+                                }
+                            )
                         }
                     }
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, text)
-                    }
-                    context.startActivity(Intent.createChooser(intent, "Share list"))
-                }) {
-                    Icon(Icons.Filled.Share, contentDescription = "Share")
                 }
             }
             Text(
@@ -148,8 +227,16 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
                                 item = item,
                                 showCheckbox = showCheckbox,
                                 fieldChips = chips,
+                                selectionMode = selectionMode,
+                                selected = item.id in selectedItemIds,
                                 onToggleChecked = { viewModel.setChecked(item, it) },
-                                onClick = { itemPendingEdit = item },
+                                onClick = {
+                                    if (selectionMode) toggleSelected(item.id) else itemPendingEdit = item
+                                },
+                                onLongClick = {
+                                    selectionMode = true
+                                    toggleSelected(item.id)
+                                },
                                 dragHandle = { Modifier.draggableHandle() }
                             )
                         }
@@ -255,19 +342,70 @@ private fun QuickAddItemBar(placeholder: String, text: String, onTextChange: (St
 }
 
 @Composable
+private fun ItemSelectionActionBar(
+    count: Int,
+    showCheckAction: Boolean,
+    onCheck: () -> Unit,
+    onUncheck: () -> Unit,
+    onDelete: () -> Unit,
+    onClose: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onClose) {
+            Icon(Icons.Filled.Close, contentDescription = "Cancel selection")
+        }
+        Text(
+            text = "$count selected",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 4.dp)
+        )
+        if (showCheckAction) {
+            IconButton(onClick = onCheck) {
+                Icon(Icons.Filled.Check, contentDescription = "Check selected")
+            }
+            IconButton(onClick = onUncheck) {
+                Icon(Icons.Filled.FiberManualRecord, contentDescription = "Uncheck selected", modifier = Modifier.size(16.dp))
+            }
+        }
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Filled.Delete, contentDescription = "Delete selected")
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun ItemRow(
     item: SimpleListItemEntity,
     showCheckbox: Boolean,
     fieldChips: List<Pair<FieldDefinitionEntity, String>>,
     onToggleChecked: (Boolean) -> Unit,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
     dragHandle: @Composable () -> Modifier
 ) {
     Card(
-        onClick = onClick,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = Modifier.fillMaxWidth()
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
         Row(
             modifier = Modifier
@@ -275,7 +413,9 @@ private fun ItemRow(
                 .padding(vertical = 8.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (showCheckbox) {
+            if (selectionMode) {
+                Checkbox(checked = selected, onCheckedChange = { onClick() })
+            } else if (showCheckbox) {
                 Checkbox(checked = item.isChecked, onCheckedChange = onToggleChecked)
             } else {
                 Icon(
