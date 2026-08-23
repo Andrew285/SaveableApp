@@ -13,6 +13,8 @@ import com.rainyday.saveableapp.data.repository.ListsRepository
 import com.rainyday.saveableapp.data.repository.SimpleListSnapshot
 import com.rainyday.saveableapp.ui.components.IconCatalog
 import com.rainyday.saveableapp.ui.theme.AccentColors
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,11 +27,11 @@ data class SimpleListUiModel(val list: SimpleListEntity, val checked: Int, val t
 
 /** Item fields resolved from AI parsing, ready to prefill the AI review sheet. */
 data class AiListItemDraft(
-    val listId: Long,
+    val listId: String,
     val text: String,
     val note: String?,
     val url: String?,
-    val fieldValues: Map<Long, String>,
+    val fieldValues: Map<String, String>,
     /** A brand-new list name the model suggested, if it didn't match any existing list — null otherwise. */
     val suggestedNewListName: String?
 )
@@ -44,7 +46,8 @@ private const val UNCATEGORIZED_LIST_COLOR_HEX = "#9E9E9E"
 private const val UNCATEGORIZED_LIST_ICON_KEY = "checklist"
 private val URL_REGEX = Regex("""https?://\S+""")
 
-class SimpleListsViewModel(
+@HiltViewModel
+class SimpleListsViewModel @Inject constructor(
     private val repository: ListsRepository,
     private val openRouterRepository: OpenRouterRepository,
     private val linkPreviewRepository: LinkPreviewRepository
@@ -56,7 +59,7 @@ class SimpleListsViewModel(
     private val _aiParsing = MutableStateFlow(false)
     val aiParsing: StateFlow<Boolean> = _aiParsing
 
-    val fieldsByListId: StateFlow<Map<Long, List<FieldDefinitionEntity>>> = repository.observeAllFields()
+    val fieldsByListId: StateFlow<Map<String, List<FieldDefinitionEntity>>> = repository.observeAllFields()
         .map { fields -> fields.groupBy { it.listId } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
@@ -91,7 +94,7 @@ class SimpleListsViewModel(
     }
 
     /** Creates a new list (e.g. from an AI suggestion) and returns its id so the caller can select it. */
-    suspend fun createListAndSelect(name: String): Long =
+    suspend fun createListAndSelect(name: String): String =
         repository.createList(name, IconCatalog.defaultKey, AccentColors.palette.random(), showCheckbox = true)
 
     suspend fun deleteListWithUndo(list: SimpleListEntity): SimpleListSnapshot =
@@ -99,7 +102,7 @@ class SimpleListsViewModel(
 
     suspend fun restoreList(snapshot: SimpleListSnapshot) = repository.restoreList(snapshot)
 
-    fun createItem(listId: Long, text: String, note: String?, url: String?, fieldValues: Map<Long, String> = emptyMap()) {
+    fun createItem(listId: String, text: String, note: String?, url: String?, fieldValues: Map<String, String> = emptyMap()) {
         viewModelScope.launch {
             val itemId = repository.createItem(listId, text, note, url)
             if (fieldValues.isNotEmpty()) repository.setItemFieldValues(itemId, fieldValues)
@@ -156,10 +159,10 @@ class SimpleListsViewModel(
 
     /** Maps AI field values (keyed by field name) to the resolved list's actual field ids. */
     private fun resolveFieldValues(
-        listId: Long,
+        listId: String,
         byName: Map<String, String>,
-        fieldsSnapshot: Map<Long, List<FieldDefinitionEntity>>
-    ): Map<Long, String> {
+        fieldsSnapshot: Map<String, List<FieldDefinitionEntity>>
+    ): Map<String, String> {
         if (byName.isEmpty()) return emptyMap()
         val fieldsForList = fieldsSnapshot[listId].orEmpty()
         return byName.mapNotNull { (name, value) ->
@@ -168,7 +171,7 @@ class SimpleListsViewModel(
     }
 
     /** Matches [name] against existing lists case-insensitively; falls back to (creating) Uncategorized. */
-    private suspend fun resolveListId(name: String?): Long {
+    private suspend fun resolveListId(name: String?): String {
         val current = lists.value.orEmpty().map { it.list }
         val trimmed = name?.trim().orEmpty()
         if (trimmed.isNotEmpty()) {

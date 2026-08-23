@@ -63,12 +63,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.rainyday.saveableapp.data.local.TodoListEntity
 import com.rainyday.saveableapp.data.local.TodoTaskEntity
-import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.EditListDialog
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.LoadingIndicator
@@ -82,19 +79,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TasksScreen(onOpenSearch: () -> Unit) {
-    val container = appContainer()
-    val viewModel: TasksViewModel = viewModel(
-        factory = viewModelFactory {
-            initializer {
-                TasksViewModel(
-                    container.todoRepository,
-                    container.preferencesRepository,
-                    container.openRouterRepository,
-                    container.taskReminderScheduler
-                )
-            }
-        }
-    )
+    val viewModel: TasksViewModel = hiltViewModel()
     val lists by viewModel.lists.collectAsState()
     val groups by viewModel.groups.collectAsState()
     val tags by viewModel.tags.collectAsState()
@@ -107,19 +92,19 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
     var showAddSheet by remember { mutableStateOf(false) }
     var quickAddTitle by remember { mutableStateOf("") }
     var aiDraft by remember { mutableStateOf<AiTaskDraft?>(null) }
-    var taskPendingEdit by remember { mutableStateOf<Pair<Long, com.rainyday.saveableapp.data.local.TaskWithTags>?>(null) }
+    var taskPendingEdit by remember { mutableStateOf<Pair<String, com.rainyday.saveableapp.data.local.TaskWithTags>?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showArchived by remember { mutableStateOf(false) }
     var showCreateListDialog by remember { mutableStateOf(false) }
     var listPendingEdit by remember { mutableStateOf<TodoListEntity?>(null) }
-    val collapsedListIds = remember { mutableStateMapOf<Long, Boolean>() }
+    val collapsedListIds = remember { mutableStateMapOf<String, Boolean>() }
     var selectionMode by remember { mutableStateOf(false) }
-    var selectedTaskIds by remember { mutableStateOf(emptySet<Long>()) }
+    var selectedTaskIds by remember { mutableStateOf(emptySet<String>()) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    fun toggleSelected(id: Long) {
+    fun toggleSelected(id: String) {
         selectedTaskIds = if (id in selectedTaskIds) selectedTaskIds - id else selectedTaskIds + id
         if (selectedTaskIds.isEmpty()) selectionMode = false
     }
@@ -312,7 +297,7 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
         val defaultListId = draft?.listId
             ?: lastUsedListId?.takeIf { id -> lists.any { it.id == id } }
             ?: lists.firstOrNull()?.id
-            ?: 0L
+            ?: ""
         TaskEditSheet(
             availableLists = lists,
             initialListId = defaultListId,
@@ -470,7 +455,7 @@ private fun SelectionActionBar(
     count: Int,
     availableLists: List<TodoListEntity>,
     onMarkDone: () -> Unit,
-    onMoveToList: (Long) -> Unit,
+    onMoveToList: (String) -> Unit,
     onDelete: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -575,7 +560,7 @@ private fun ArchivedTasksSheet(
     tasks: List<com.rainyday.saveableapp.data.local.TaskWithTags>,
     onDismiss: () -> Unit,
     onRestore: (TodoTaskEntity) -> Unit,
-    onDeletePermanently: (TodoTaskEntity, List<Long>) -> Unit
+    onDeletePermanently: (TodoTaskEntity, List<String>) -> Unit
 ) {
     val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {

@@ -9,12 +9,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 @Entity(tableName = "flashcard_decks")
 data class FlashCardDeckEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String,
     val name: String,
     val icon: String,
     val colorHex: String,
     val position: Int = 0,
-    val createdAt: Long
+    val createdAt: Long,
+    val updatedAt: Long
 )
 
 @Serializable
@@ -31,12 +32,13 @@ data class FlashCardDeckEntity(
     indices = [Index("deckId")]
 )
 data class FlashCardEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val deckId: Long,
+    @PrimaryKey val id: String,
+    val deckId: String,
     val front: String,
     val back: String,
     val position: Int = 0,
     val createdAt: Long,
+    val updatedAt: Long,
     // Spaced-repetition scheduling state (simplified SM-2). New/never-reviewed cards default to
     // dueAt = 0, i.e. already due, so they show up in a study session right away.
     val intervalDays: Int = 0,

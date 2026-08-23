@@ -28,24 +28,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
-import com.rainyday.saveableapp.ui.appContainer
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     onBack: () -> Unit,
-    onOpenTodoList: (Long) -> Unit,
-    onOpenSimpleList: (Long) -> Unit
+    onOpenTodoList: (String) -> Unit,
+    onOpenSimpleList: (String) -> Unit
 ) {
-    val container = appContainer()
-    val viewModel: SearchViewModel = viewModel(
-        factory = viewModelFactory {
-            initializer { SearchViewModel(container.todoRepository, container.listsRepository) }
-        }
-    )
+    val viewModel: SearchViewModel = hiltViewModel()
     val query by viewModel.query.collectAsState()
     val results by viewModel.results.collectAsState()
 

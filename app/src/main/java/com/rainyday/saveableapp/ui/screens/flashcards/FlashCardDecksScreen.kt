@@ -34,11 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.rainyday.saveableapp.data.local.FlashCardDeckEntity
-import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.EditListDialog
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.LoadingIndicator
@@ -49,13 +46,10 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun FlashCardDecksScreen(
-    onOpenDeck: (Long) -> Unit,
+    onOpenDeck: (String) -> Unit,
     onOpenSearch: () -> Unit
 ) {
-    val container = appContainer()
-    val viewModel: FlashCardDecksViewModel = viewModel(
-        factory = viewModelFactory { initializer { FlashCardDecksViewModel(container.flashCardsRepository) } }
-    )
+    val viewModel: FlashCardDecksViewModel = hiltViewModel()
     val decks by viewModel.decks.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()

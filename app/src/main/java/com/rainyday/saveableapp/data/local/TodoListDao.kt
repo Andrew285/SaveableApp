@@ -13,17 +13,20 @@ interface TodoListDao {
     fun observeLists(): Flow<List<TodoListEntity>>
 
     @Query("SELECT * FROM todo_lists WHERE id = :id")
-    suspend fun getById(id: Long): TodoListEntity?
+    suspend fun getById(id: String): TodoListEntity?
 
     @Query("SELECT * FROM todo_lists WHERE id = :id")
-    fun observeById(id: Long): Flow<TodoListEntity?>
+    fun observeById(id: String): Flow<TodoListEntity?>
 
     @Insert
-    suspend fun insert(list: TodoListEntity): Long
+    suspend fun insert(list: TodoListEntity)
 
     @Update
     suspend fun update(list: TodoListEntity)
 
     @Delete
     suspend fun delete(list: TodoListEntity)
+
+    @Query("DELETE FROM todo_lists WHERE id = :id")
+    suspend fun deleteById(id: String)
 }

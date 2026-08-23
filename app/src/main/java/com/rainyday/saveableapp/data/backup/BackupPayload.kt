@@ -16,7 +16,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class BackupPayload(
-    val version: Int = 1,
+    // Bumped from 1 -> 2 when entity ids moved from Long (Room autoGenerate) to String (client UUID)
+    // for cross-device sync — payloads exported before this change no longer decode.
+    val version: Int = 2,
     val exportedAt: Long,
     val todoLists: List<TodoListEntity>,
     val todoTasks: List<TodoTaskEntity>,

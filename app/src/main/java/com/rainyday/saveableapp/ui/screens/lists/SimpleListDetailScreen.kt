@@ -58,14 +58,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.rainyday.saveableapp.data.export.buildListCsv
 import com.rainyday.saveableapp.data.export.writeListPdf
 import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
 import com.rainyday.saveableapp.data.local.SimpleListItemEntity
-import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.DetailHeader
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.FieldValueChip
@@ -77,12 +74,9 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
-    val container = appContainer()
+fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
     val context = LocalContext.current
-    val viewModel: SimpleListItemViewModel = viewModel(
-        factory = viewModelFactory { initializer { SimpleListItemViewModel(listId, container.listsRepository) } }
-    )
+    val viewModel: SimpleListItemViewModel = hiltViewModel()
     val list by viewModel.list.collectAsState()
     val items by viewModel.items.collectAsState()
     val fields by viewModel.fields.collectAsState()
@@ -97,7 +91,7 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
     var showFieldsManager by remember { mutableStateOf(false) }
     var quickAddText by remember { mutableStateOf("") }
     var selectionMode by remember { mutableStateOf(false) }
-    var selectedItemIds by remember { mutableStateOf(emptySet<Long>()) }
+    var selectedItemIds by remember { mutableStateOf(emptySet<String>()) }
     var showExportMenu by remember { mutableStateOf(false) }
 
     val csvExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
@@ -112,7 +106,7 @@ fun SimpleListDetailScreen(listId: Long, onBack: () -> Unit) {
         }
     }
 
-    fun toggleSelected(id: Long) {
+    fun toggleSelected(id: String) {
         selectedItemIds = if (id in selectedItemIds) selectedItemIds - id else selectedItemIds + id
         if (selectedItemIds.isEmpty()) selectionMode = false
     }

@@ -37,4 +37,12 @@ class FirebaseAuthRepository {
     fun signOut() {
         auth.signOut()
     }
+
+    /**
+     * Fires immediately with the current uid (or null) and again on every future sign-in/out,
+     * regardless of which screen triggered it. Used to start/stop Firestore sync.
+     */
+    fun addAuthStateListener(onChanged: (uid: String?) -> Unit) {
+        auth.addAuthStateListener { firebaseAuth -> onChanged(firebaseAuth.currentUser?.uid) }
+    }
 }

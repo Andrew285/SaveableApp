@@ -14,9 +14,8 @@ import androidx.core.app.NotificationManagerCompat
 /** Fires when a scheduled task reminder is due; shows a notification unless permission was denied. */
 class TaskReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val taskId = intent.getLongExtra(TaskReminderScheduler.EXTRA_TASK_ID, -1L)
+        val taskId = intent.getStringExtra(TaskReminderScheduler.EXTRA_TASK_ID) ?: return
         val title = intent.getStringExtra(TaskReminderScheduler.EXTRA_TASK_TITLE) ?: return
-        if (taskId < 0) return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -27,7 +26,7 @@ class TaskReminderReceiver : BroadcastReceiver() {
         val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val contentIntent = PendingIntent.getActivity(
             context,
-            taskId.toInt(),
+            taskId.hashCode(),
             launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -41,6 +40,6 @@ class TaskReminderReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
-        runCatching { NotificationManagerCompat.from(context).notify(taskId.toInt(), notification) }
+        runCatching { NotificationManagerCompat.from(context).notify(taskId.hashCode(), notification) }
     }
 }

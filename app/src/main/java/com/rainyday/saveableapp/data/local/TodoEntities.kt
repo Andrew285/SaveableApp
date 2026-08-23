@@ -12,12 +12,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 @Entity(tableName = "todo_lists")
 data class TodoListEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String,
     val name: String,
     val colorHex: String,
     val icon: String,
     val position: Int = 0,
-    val createdAt: Long
+    val createdAt: Long,
+    val updatedAt: Long
 )
 
 @Serializable
@@ -34,8 +35,8 @@ data class TodoListEntity(
     indices = [Index("listId")]
 )
 data class TodoTaskEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val listId: Long,
+    @PrimaryKey val id: String,
+    val listId: String,
     val title: String,
     val notes: String? = null,
     val isDone: Boolean = false,
@@ -44,6 +45,7 @@ data class TodoTaskEntity(
     val colorHex: String? = null,
     val position: Int = 0,
     val createdAt: Long,
+    val updatedAt: Long,
     val completedAt: Long? = null,
     val isArchived: Boolean = false,
     val recurrence: RecurrenceRule = RecurrenceRule.NONE
@@ -52,9 +54,10 @@ data class TodoTaskEntity(
 @Serializable
 @Entity(tableName = "tags")
 data class TagEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String,
     val name: String,
-    val colorHex: String
+    val colorHex: String,
+    val updatedAt: Long
 )
 
 @Serializable
@@ -78,8 +81,8 @@ data class TagEntity(
     indices = [Index("taskId"), Index("tagId")]
 )
 data class TaskTagCrossRef(
-    val taskId: Long,
-    val tagId: Long
+    val taskId: String,
+    val tagId: String
 )
 
 data class TaskWithTags(

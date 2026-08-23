@@ -38,11 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.rainyday.saveableapp.data.local.SimpleListEntity
-import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.DirectoryCard
 import com.rainyday.saveableapp.ui.components.EditListDialog
 import com.rainyday.saveableapp.ui.components.EmptyState
@@ -62,17 +59,10 @@ private val templateOptions = simpleListTemplates.map {
 
 @Composable
 fun SimpleListsScreen(
-    onOpenList: (Long) -> Unit,
+    onOpenList: (String) -> Unit,
     onOpenSearch: () -> Unit
 ) {
-    val container = appContainer()
-    val viewModel: SimpleListsViewModel = viewModel(
-        factory = viewModelFactory {
-            initializer {
-                SimpleListsViewModel(container.listsRepository, container.openRouterRepository, container.linkPreviewRepository)
-            }
-        }
-    )
+    val viewModel: SimpleListsViewModel = hiltViewModel()
     val lists by viewModel.lists.collectAsState()
     val aiParsing by viewModel.aiParsing.collectAsState()
     val fieldsByListId by viewModel.fieldsByListId.collectAsState()
@@ -206,7 +196,7 @@ fun SimpleListsScreen(
         AiAddItemSheet(
             availableLists = availableLists,
             fieldsByListId = fieldsByListId,
-            initialListId = draft?.listId ?: availableLists.firstOrNull()?.id ?: 0L,
+            initialListId = draft?.listId ?: availableLists.firstOrNull()?.id ?: "",
             initialText = draft?.text ?: aiInputText,
             initialNote = draft?.note.orEmpty(),
             initialUrl = draft?.url.orEmpty(),

@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.rainyday.saveableapp.data.local.FlashCardDeckEntity
 import com.rainyday.saveableapp.data.repository.FlashCardDeckSnapshot
 import com.rainyday.saveableapp.data.repository.FlashCardsRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -12,7 +14,8 @@ import kotlinx.coroutines.launch
 
 data class FlashCardDeckUiModel(val deck: FlashCardDeckEntity, val cardCount: Int, val dueCount: Int)
 
-class FlashCardDecksViewModel(private val repository: FlashCardsRepository) : ViewModel() {
+@HiltViewModel
+class FlashCardDecksViewModel @Inject constructor(private val repository: FlashCardsRepository) : ViewModel() {
     // null while the first Room emission hasn't arrived yet, so the UI can tell "loading" apart from "empty".
     private val _decks = MutableStateFlow<List<FlashCardDeckUiModel>?>(null)
     val decks: StateFlow<List<FlashCardDeckUiModel>?> = _decks

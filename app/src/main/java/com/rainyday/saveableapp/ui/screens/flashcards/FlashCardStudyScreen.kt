@@ -37,21 +37,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.rainyday.saveableapp.data.repository.CardRating
-import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.LoadingIndicator
 import com.rainyday.saveableapp.ui.theme.EyebrowTextStyle
 import com.rainyday.saveableapp.ui.theme.PillShape
 
 @Composable
-fun FlashCardStudyScreen(deckId: Long, onBack: () -> Unit) {
-    val container = appContainer()
-    val viewModel: FlashCardStudyViewModel = viewModel(
-        factory = viewModelFactory { initializer { FlashCardStudyViewModel(deckId, container.flashCardsRepository) } }
-    )
+fun FlashCardStudyScreen(deckId: String, onBack: () -> Unit) {
+    val viewModel: FlashCardStudyViewModel = hiltViewModel()
     val deck by viewModel.deck.collectAsState()
     val queue by viewModel.queue.collectAsState()
     val index by viewModel.index.collectAsState()

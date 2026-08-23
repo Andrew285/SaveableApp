@@ -9,11 +9,12 @@ import kotlinx.serialization.Serializable
 @Serializable
 @Entity(tableName = "info_categories")
 data class InfoCategoryEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String,
     val name: String,
     val icon: String,
     val colorHex: String,
-    val position: Int = 0
+    val position: Int = 0,
+    val updatedAt: Long
 )
 
 @Serializable
@@ -30,8 +31,8 @@ data class InfoCategoryEntity(
     indices = [Index("categoryId")]
 )
 data class InfoBlockEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val categoryId: Long,
+    @PrimaryKey val id: String,
+    val categoryId: String,
     val title: String,
     val content: String,
     val isSensitive: Boolean = false,

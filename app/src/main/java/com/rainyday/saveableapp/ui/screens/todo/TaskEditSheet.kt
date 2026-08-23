@@ -59,27 +59,27 @@ import kotlinx.coroutines.launch
 @Composable
 fun TaskEditSheet(
     availableLists: List<TodoListEntity>,
-    initialListId: Long,
+    initialListId: String,
     initialTitle: String = "",
     initialNotes: String = "",
     initialPriority: Priority = Priority.MEDIUM,
     initialDueDate: Long? = null,
     initialColorHex: String? = null,
-    initialTagIds: Set<Long> = emptySet(),
+    initialTagIds: Set<String> = emptySet(),
     initialRecurrence: RecurrenceRule = RecurrenceRule.NONE,
     suggestedNewListName: String? = null,
-    onCreateSuggestedList: (suspend (String) -> Long)? = null,
+    onCreateSuggestedList: (suspend (String) -> String)? = null,
     availableTags: List<TagEntity>,
     onCreateTag: (name: String, colorHex: String) -> Unit,
     onDismiss: () -> Unit,
     onSave: (
-        listId: Long,
+        listId: String,
         title: String,
         notes: String?,
         priority: Priority,
         dueDate: Long?,
         colorHex: String?,
-        tagIds: List<Long>,
+        tagIds: List<String>,
         recurrence: RecurrenceRule
     ) -> Unit,
     onDelete: (() -> Unit)? = null
@@ -249,7 +249,7 @@ fun TaskEditSheet(
                 }
                 PillButtonFilled(
                     text = "Save",
-                    enabled = title.isNotBlank() && listId != 0L,
+                    enabled = title.isNotBlank() && listId.isNotEmpty(),
                     onClick = {
                         onSave(
                             listId,

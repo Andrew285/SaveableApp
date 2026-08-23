@@ -8,6 +8,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The synced app data collections (todoLists, todoTasks, tags, simpleLists, simpleListItems,
+    // infoCategories, infoBlocks, flashCardDecks, flashCards, fieldDefinitions, fieldValues) — see
+    // SyncEntityType.firestoreCollectionName(). Only the owning signed-in user may read or write
+    // their own subtree; nothing here is ever written by a Cloud Function.
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
     // Daily call counters are only ever written by the Cloud Function (Admin SDK bypasses these
     // rules); the owning user may read their own counters to show remaining quota in the app.
     match /usage/{uid}/daily/{date} {

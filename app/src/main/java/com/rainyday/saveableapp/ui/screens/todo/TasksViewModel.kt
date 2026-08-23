@@ -3,6 +3,8 @@ package com.rainyday.saveableapp.ui.screens.todo
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rainyday.saveableapp.data.ai.OpenRouterRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import com.rainyday.saveableapp.data.local.Priority
 import com.rainyday.saveableapp.data.local.RecurrenceRule
 import com.rainyday.saveableapp.data.local.TagEntity
@@ -28,12 +30,12 @@ enum class TaskFilter { ALL, ACTIVE, COMPLETED }
 
 /** Task fields resolved from AI parsing, ready to prefill the add-task sheet. */
 data class AiTaskDraft(
-    val listId: Long,
+    val listId: String,
     val title: String,
     val notes: String?,
     val priority: Priority,
     val dueDate: Long?,
-    val tagIds: List<Long>,
+    val tagIds: List<String>,
     val recurrence: RecurrenceRule,
     /** A brand-new list name the model suggested, if it didn't match any existing list — null otherwise. */
     val suggestedNewListName: String?
@@ -48,7 +50,8 @@ private const val UNCATEGORIZED_LIST_NAME = "Uncategorized"
 private const val UNCATEGORIZED_LIST_COLOR_HEX = "#9E9E9E"
 private const val UNCATEGORIZED_LIST_ICON_KEY = "checklist"
 
-class TasksViewModel(
+@HiltViewModel
+class TasksViewModel @Inject constructor(
     private val repository: TodoRepository,
     private val preferencesRepository: PreferencesRepository,
     private val openRouterRepository: OpenRouterRepository,
@@ -92,7 +95,7 @@ class TasksViewModel(
     val tags: StateFlow<List<TagEntity>> = repository.observeTags()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val lastUsedListId: StateFlow<Long?> = preferencesRepository.lastUsedTodoListId
+    val lastUsedListId: StateFlow<String?> = preferencesRepository.lastUsedTodoListId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _aiParsing = MutableStateFlow(false)
@@ -134,7 +137,7 @@ class TasksViewModel(
     }
 
     /** Matches [name] against existing lists case-insensitively; falls back to (creating) Uncategorized. */
-    private suspend fun resolveListId(name: String?): Long {
+    private suspend fun resolveListId(name: String?): String {
         val current = lists.value
         val trimmed = name?.trim().orEmpty()
         if (trimmed.isNotEmpty()) {
@@ -145,7 +148,7 @@ class TasksViewModel(
     }
 
     /** Matches [name] against existing tags case-insensitively, creating a new tag if needed. */
-    private suspend fun resolveTagId(name: String): Long? {
+    private suspend fun resolveTagId(name: String): String? {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return null
         tags.value.firstOrNull { it.name.equals(trimmed, ignoreCase = true) }?.let { return it.id }
@@ -160,7 +163,7 @@ class TasksViewModel(
         _filter.value = value
     }
 
-    fun setDone(task: TodoTaskEntity, done: Boolean, tagIds: List<Long> = emptyList()) {
+    fun setDone(task: TodoTaskEntity, done: Boolean, tagIds: List<String> = emptyList()) {
         viewModelScope.launch {
             val spawned = repository.setTaskDone(task, done, tagIds)
             if (done) {
@@ -172,19 +175,19 @@ class TasksViewModel(
         }
     }
 
-    suspend fun deleteTaskWithUndo(task: TodoTaskEntity, tagIds: List<Long>): Pair<TodoTaskEntity, List<Long>> {
+    suspend fun deleteTaskWithUndo(task: TodoTaskEntity, tagIds: List<String>): Pair<TodoTaskEntity, List<String>> {
         repository.deleteTask(task)
         reminderScheduler.cancel(task.id)
         return task to tagIds
     }
 
-    suspend fun restoreTask(snapshot: Pair<TodoTaskEntity, List<Long>>) {
+    suspend fun restoreTask(snapshot: Pair<TodoTaskEntity, List<String>>) {
         repository.restoreTask(snapshot.first, snapshot.second)
         reminderScheduler.schedule(snapshot.first.id, snapshot.first.title, snapshot.first.dueDate)
     }
 
     /** Deletes all of [items] and returns a snapshot [restoreTasks] can use to undo it. */
-    suspend fun bulkDeleteWithUndo(items: List<TaskWithTags>): List<Pair<TodoTaskEntity, List<Long>>> {
+    suspend fun bulkDeleteWithUndo(items: List<TaskWithTags>): List<Pair<TodoTaskEntity, List<String>>> {
         val snapshot = items.map { it.task to it.tags.map { tag -> tag.id } }
         items.forEach {
             repository.deleteTask(it.task)
@@ -193,7 +196,7 @@ class TasksViewModel(
         return snapshot
     }
 
-    suspend fun restoreTasks(snapshot: List<Pair<TodoTaskEntity, List<Long>>>) {
+    suspend fun restoreTasks(snapshot: List<Pair<TodoTaskEntity, List<String>>>) {
         snapshot.forEach {
             repository.restoreTask(it.first, it.second)
             reminderScheduler.schedule(it.first.id, it.first.title, it.first.dueDate)
@@ -215,20 +218,20 @@ class TasksViewModel(
         }
     }
 
-    fun bulkMoveToList(items: List<TaskWithTags>, listId: Long) {
+    fun bulkMoveToList(items: List<TaskWithTags>, listId: String) {
         viewModelScope.launch {
             items.forEach { repository.updateTask(it.task.copy(listId = listId), it.tags.map { tag -> tag.id }) }
         }
     }
 
     fun createTask(
-        listId: Long,
+        listId: String,
         title: String,
         notes: String?,
         priority: Priority,
         dueDate: Long?,
         colorHex: String?,
-        tagIds: List<Long>,
+        tagIds: List<String>,
         recurrence: RecurrenceRule = RecurrenceRule.NONE
     ) {
         viewModelScope.launch {
@@ -240,13 +243,13 @@ class TasksViewModel(
 
     fun updateTask(
         task: TodoTaskEntity,
-        listId: Long,
+        listId: String,
         title: String,
         notes: String?,
         priority: Priority,
         dueDate: Long?,
         colorHex: String?,
-        tagIds: List<Long>,
+        tagIds: List<String>,
         recurrence: RecurrenceRule = RecurrenceRule.NONE
     ) {
         viewModelScope.launch {
@@ -268,7 +271,7 @@ class TasksViewModel(
     }
 
     /** Creates a new list (e.g. from an AI suggestion) and returns its id so the caller can select it. */
-    suspend fun createListAndSelect(name: String): Long =
+    suspend fun createListAndSelect(name: String): String =
         repository.createList(name, AccentColors.palette.random(), IconCatalog.defaultKey)
 
     fun archiveAllCompleted() {

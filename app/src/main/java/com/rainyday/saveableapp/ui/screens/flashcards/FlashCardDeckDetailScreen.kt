@@ -43,11 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.rainyday.saveableapp.data.local.FlashCardEntity
-import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import kotlinx.coroutines.launch
@@ -56,11 +53,8 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FlashCardDeckDetailScreen(deckId: Long, onBack: () -> Unit, onStudy: () -> Unit) {
-    val container = appContainer()
-    val viewModel: FlashCardViewModel = viewModel(
-        factory = viewModelFactory { initializer { FlashCardViewModel(deckId, container.flashCardsRepository) } }
-    )
+fun FlashCardDeckDetailScreen(deckId: String, onBack: () -> Unit, onStudy: () -> Unit) {
+    val viewModel: FlashCardViewModel = hiltViewModel()
     val deck by viewModel.deck.collectAsState()
     val cards by viewModel.cards.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }

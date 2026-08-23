@@ -48,11 +48,9 @@ import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.rainyday.saveableapp.data.local.InfoBlockEntity
-import com.rainyday.saveableapp.ui.appContainer
+import com.rainyday.saveableapp.ui.rememberAppEntryPoint
 import com.rainyday.saveableapp.ui.components.DetailHeader
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.IconCatalog
@@ -66,14 +64,12 @@ import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InfoCategoryDetailScreen(categoryId: Long, onBack: () -> Unit) {
-    val container = appContainer()
-    val viewModel: InfoBlockViewModel = viewModel(
-        factory = viewModelFactory { initializer { InfoBlockViewModel(categoryId, container.infoRepository) } }
-    )
+fun InfoCategoryDetailScreen(categoryId: String, onBack: () -> Unit) {
+    val viewModel: InfoBlockViewModel = hiltViewModel()
+    val preferencesRepository = rememberAppEntryPoint().preferencesRepository()
     val category by viewModel.category.collectAsState()
     val blocks by viewModel.blocks.collectAsState()
-    val lockEnabled by container.preferencesRepository.infoLockEnabled.collectAsState(initial = true)
+    val lockEnabled by preferencesRepository.infoLockEnabled.collectAsState(initial = true)
 
     var unlocked by remember { mutableStateOf(false) }
     LaunchedEffect(lockEnabled) {
@@ -205,7 +201,7 @@ private fun ClipboardManager.copyText(text: String) = setText(AnnotatedString(te
 
 @Composable
 private fun LockedGate(categoryName: String, onUnlocked: () -> Unit, onBack: () -> Unit) {
-    val container = appContainer()
+    val preferencesRepository = rememberAppEntryPoint().preferencesRepository()
 
     Scaffold(
         topBar = { DetailHeader(onBack = onBack, backLabel = "Vault") }
@@ -213,7 +209,7 @@ private fun LockedGate(categoryName: String, onUnlocked: () -> Unit, onBack: () 
         LockGateContent(
             title = "Locked",
             subtitle = "Verify it's you to view this information.",
-            preferencesRepository = container.preferencesRepository,
+            preferencesRepository = preferencesRepository,
             onUnlocked = onUnlocked,
             modifier = Modifier.padding(padding)
         )

@@ -13,17 +13,20 @@ interface SimpleListDao {
     fun observeLists(): Flow<List<SimpleListEntity>>
 
     @Query("SELECT * FROM simple_lists WHERE id = :id")
-    fun observeById(id: Long): Flow<SimpleListEntity?>
+    fun observeById(id: String): Flow<SimpleListEntity?>
 
     @Query("SELECT * FROM simple_lists WHERE id = :id")
-    suspend fun getById(id: Long): SimpleListEntity?
+    suspend fun getById(id: String): SimpleListEntity?
 
     @Insert
-    suspend fun insert(list: SimpleListEntity): Long
+    suspend fun insert(list: SimpleListEntity)
 
     @Update
     suspend fun update(list: SimpleListEntity)
 
     @Delete
     suspend fun delete(list: SimpleListEntity)
+
+    @Query("DELETE FROM simple_lists WHERE id = :id")
+    suspend fun deleteById(id: String)
 }

@@ -15,14 +15,14 @@ import kotlinx.coroutines.runBlocking
 
 @Composable
 fun TodoApp() {
-    val container = appContainer()
-    val themeMode by container.preferencesRepository.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
-    val dynamicColor by container.preferencesRepository.dynamicColorEnabled.collectAsState(initial = true)
+    val preferencesRepository = rememberAppEntryPoint().preferencesRepository()
+    val themeMode by preferencesRepository.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+    val dynamicColor by preferencesRepository.dynamicColorEnabled.collectAsState(initial = true)
 
     // Read the persisted value synchronously so the very first frame already reflects reality —
     // no blank frame, and no risk of briefly rendering the wrong (default) lock state.
-    val appLockEnabled by container.preferencesRepository.appLockEnabled.collectAsState(
-        initial = remember { runBlocking { container.preferencesRepository.appLockEnabled.first() } }
+    val appLockEnabled by preferencesRepository.appLockEnabled.collectAsState(
+        initial = remember { runBlocking { preferencesRepository.appLockEnabled.first() } }
     )
 
     var unlocked by remember { mutableStateOf(!appLockEnabled) }
@@ -30,7 +30,7 @@ fun TodoApp() {
     SaveableAppTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
         if (!unlocked) {
             AppLockScreen(
-                preferencesRepository = container.preferencesRepository,
+                preferencesRepository = preferencesRepository,
                 onUnlocked = { unlocked = true }
             )
         } else {

@@ -52,16 +52,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun AiAddItemSheet(
     availableLists: List<SimpleListEntity>,
-    fieldsByListId: Map<Long, List<FieldDefinitionEntity>>,
-    initialListId: Long,
+    fieldsByListId: Map<String, List<FieldDefinitionEntity>>,
+    initialListId: String,
     initialText: String,
     initialNote: String = "",
     initialUrl: String = "",
-    initialFieldValues: Map<Long, String> = emptyMap(),
+    initialFieldValues: Map<String, String> = emptyMap(),
     suggestedNewListName: String? = null,
-    onCreateSuggestedList: (suspend (String) -> Long)? = null,
+    onCreateSuggestedList: (suspend (String) -> String)? = null,
     onDismiss: () -> Unit,
-    onSave: (listId: Long, text: String, note: String?, url: String?, fieldValues: Map<Long, String>) -> Unit
+    onSave: (listId: String, text: String, note: String?, url: String?, fieldValues: Map<String, String>) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -70,8 +70,8 @@ fun AiAddItemSheet(
     var note by remember { mutableStateOf(initialNote) }
     var link by remember { mutableStateOf(initialUrl) }
     var showListMenu by remember { mutableStateOf(false) }
-    val fieldValues = remember { mutableStateMapOf<Long, String>().apply { putAll(initialFieldValues) } }
-    var datePickerFieldId by remember { mutableStateOf<Long?>(null) }
+    val fieldValues = remember { mutableStateMapOf<String, String>().apply { putAll(initialFieldValues) } }
+    var datePickerFieldId by remember { mutableStateOf<String?>(null) }
     var suggestionDismissed by remember { mutableStateOf(false) }
     val currentFields = fieldsByListId[listId].orEmpty()
 
@@ -188,7 +188,7 @@ fun AiAddItemSheet(
 
             PillButtonFilled(
                 text = "Add to list",
-                enabled = text.isNotBlank() && listId != 0L,
+                enabled = text.isNotBlank() && listId.isNotEmpty(),
                 onClick = {
                     onSave(listId, text.trim(), note.trim().ifBlank { null }, normalizeUrl(link), fieldValues.toMap())
                 },

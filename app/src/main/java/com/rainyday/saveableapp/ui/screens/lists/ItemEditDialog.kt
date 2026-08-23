@@ -48,17 +48,17 @@ fun ItemEditDialog(
     initialNote: String = "",
     initialUrl: String = "",
     fields: List<FieldDefinitionEntity> = emptyList(),
-    initialFieldValues: Map<Long, String> = emptyMap(),
+    initialFieldValues: Map<String, String> = emptyMap(),
     textLabel: String = "Title",
     onDismiss: () -> Unit,
-    onConfirm: (text: String, note: String?, url: String?, fieldValues: Map<Long, String>) -> Unit,
+    onConfirm: (text: String, note: String?, url: String?, fieldValues: Map<String, String>) -> Unit,
     onDelete: (() -> Unit)? = null
 ) {
     var text by remember { mutableStateOf(initialText) }
     var note by remember { mutableStateOf(initialNote) }
     var link by remember { mutableStateOf(initialUrl) }
-    val fieldValues = remember { mutableStateMapOf<Long, String>().apply { putAll(initialFieldValues) } }
-    var datePickerFieldId by remember { mutableStateOf<Long?>(null) }
+    val fieldValues = remember { mutableStateMapOf<String, String>().apply { putAll(initialFieldValues) } }
+    var datePickerFieldId by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

@@ -22,9 +22,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FlashCardEntity::class,
         FieldDefinitionEntity::class,
         FieldValueEntity::class,
-        LinkPreviewCacheEntity::class
+        LinkPreviewCacheEntity::class,
+        SyncOutboxEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -42,6 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun fieldValueDao(): FieldValueDao
     abstract fun linkPreviewDao(): LinkPreviewDao
     abstract fun backupDao(): BackupDao
+    abstract fun syncOutboxDao(): SyncOutboxDao
 
     companion object {
         @Volatile private var instance: AppDatabase? = null
@@ -128,7 +130,11 @@ abstract class AppDatabase : RoomDatabase() {
                     "todo_app.db"
                 ).addMigrations(
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7
-                ).build().also { instance = it }
+                )
+                    // 7->8 retypes every synced entity's id (Long autoGenerate -> String UUID) for
+                    // cross-device sync — pre-launch, so no hand-written data-preserving migration.
+                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .build().also { instance = it }
             }
     }
 }

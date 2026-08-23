@@ -26,8 +26,9 @@ class PreferencesRepository(private val context: Context) {
         val APP_PIN_SALT = stringPreferencesKey("app_pin_salt")
         val DRIVE_BACKUP_FILE_ID = stringPreferencesKey("drive_backup_file_id")
         val DRIVE_LAST_BACKUP_AT = longPreferencesKey("drive_last_backup_at")
-        val LAST_USED_TODO_LIST_ID = longPreferencesKey("last_used_todo_list_id")
+        val LAST_USED_TODO_LIST_ID = stringPreferencesKey("last_used_todo_list_id")
         val AUTO_BACKUP_ENABLED = booleanPreferencesKey("auto_backup_enabled")
+        val LAST_SYNC_AT = longPreferencesKey("last_sync_at")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
@@ -57,9 +58,12 @@ class PreferencesRepository(private val context: Context) {
     val driveLastBackupAt: Flow<Long?> = context.dataStore.data.map { prefs -> prefs[Keys.DRIVE_LAST_BACKUP_AT] }
 
     /** Last to-do list a task was added to, used to default the quick-add bar's destination list. */
-    val lastUsedTodoListId: Flow<Long?> = context.dataStore.data.map { prefs -> prefs[Keys.LAST_USED_TODO_LIST_ID] }
+    val lastUsedTodoListId: Flow<String?> = context.dataStore.data.map { prefs -> prefs[Keys.LAST_USED_TODO_LIST_ID] }
 
     val autoBackupEnabled: Flow<Boolean> = context.dataStore.data.map { prefs -> prefs[Keys.AUTO_BACKUP_ENABLED] ?: false }
+
+    /** When [com.rainyday.saveableapp.data.sync.SyncWorker] last finished pushing the outbox to Firestore, successfully or with nothing to push. */
+    val lastSyncAt: Flow<Long?> = context.dataStore.data.map { prefs -> prefs[Keys.LAST_SYNC_AT] }
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[Keys.THEME_MODE] = mode.name }
@@ -107,12 +111,16 @@ class PreferencesRepository(private val context: Context) {
         context.dataStore.edit { it[Keys.DRIVE_LAST_BACKUP_AT] = millis }
     }
 
-    suspend fun setLastUsedTodoListId(listId: Long) {
+    suspend fun setLastUsedTodoListId(listId: String) {
         context.dataStore.edit { it[Keys.LAST_USED_TODO_LIST_ID] = listId }
     }
 
     suspend fun setAutoBackupEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_BACKUP_ENABLED] = enabled }
+    }
+
+    suspend fun setLastSyncAt(millis: Long) {
+        context.dataStore.edit { it[Keys.LAST_SYNC_AT] = millis }
     }
 
     private fun generateSalt(): String {

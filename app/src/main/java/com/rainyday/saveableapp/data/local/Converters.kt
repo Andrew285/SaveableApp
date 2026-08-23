@@ -20,4 +20,17 @@ class Converters {
 
     @TypeConverter
     fun toRecurrenceRule(value: Int): RecurrenceRule = RecurrenceRule.entries.getOrElse(value) { RecurrenceRule.NONE }
+
+    @TypeConverter
+    fun fromSyncOperation(operation: SyncOperation): Int = operation.ordinal
+
+    @TypeConverter
+    fun toSyncOperation(value: Int): SyncOperation = SyncOperation.entries.getOrElse(value) { SyncOperation.UPSERT }
+
+    @TypeConverter
+    fun fromSyncEntityType(type: SyncEntityType): Int = type.ordinal
+
+    @TypeConverter
+    fun toSyncEntityType(value: Int): SyncEntityType = SyncEntityType.entries.getOrElse(value) { SyncEntityType.TODO_TASK }
+    // Note: SyncEntityType ordinals are persisted (via this converter). Only ever append new entries.
 }

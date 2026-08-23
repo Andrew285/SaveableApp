@@ -1,7 +1,9 @@
 package com.rainyday.saveableapp.ui.screens.lists
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
 import com.rainyday.saveableapp.data.local.FieldType
 import com.rainyday.saveableapp.data.local.FieldValueEntity
@@ -9,6 +11,9 @@ import com.rainyday.saveableapp.data.local.SimpleListEntity
 import com.rainyday.saveableapp.data.local.SimpleListItemEntity
 import com.rainyday.saveableapp.data.repository.ListsRepository
 import com.rainyday.saveableapp.data.repository.SimpleListItemSnapshot
+import com.rainyday.saveableapp.navigation.Screen
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,10 +21,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class SimpleListItemViewModel(
-    private val listId: Long,
+@HiltViewModel
+class SimpleListItemViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val repository: ListsRepository
 ) : ViewModel() {
+    private val listId: String = savedStateHandle.toRoute<Screen.SimpleListDetail>().listId
     val list: StateFlow<SimpleListEntity?> = repository.observeList(listId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -29,7 +36,7 @@ class SimpleListItemViewModel(
     private val _items = MutableStateFlow<List<SimpleListItemEntity>>(emptyList())
     val items: StateFlow<List<SimpleListItemEntity>> = _items
 
-    val fieldValuesByItem: StateFlow<Map<Long, List<FieldValueEntity>>> = repository.observeFieldValues(listId)
+    val fieldValuesByItem: StateFlow<Map<String, List<FieldValueEntity>>> = repository.observeFieldValues(listId)
         .map { values -> values.groupBy { it.itemId } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
@@ -39,14 +46,14 @@ class SimpleListItemViewModel(
         }
     }
 
-    fun createItem(text: String, note: String?, url: String?, fieldValues: Map<Long, String>) {
+    fun createItem(text: String, note: String?, url: String?, fieldValues: Map<String, String>) {
         viewModelScope.launch {
             val itemId = repository.createItem(listId, text, note, url)
             if (fieldValues.isNotEmpty()) repository.setItemFieldValues(itemId, fieldValues)
         }
     }
 
-    fun updateItem(item: SimpleListItemEntity, text: String, note: String?, url: String?, fieldValues: Map<Long, String>) {
+    fun updateItem(item: SimpleListItemEntity, text: String, note: String?, url: String?, fieldValues: Map<String, String>) {
         viewModelScope.launch {
             repository.updateItem(item.copy(text = text, note = note, url = url))
             repository.setItemFieldValues(item.id, fieldValues)

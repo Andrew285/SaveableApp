@@ -13,14 +13,20 @@ interface FlashCardDeckDao {
     fun observeDecks(): Flow<List<FlashCardDeckEntity>>
 
     @Query("SELECT * FROM flashcard_decks WHERE id = :id")
-    fun observeById(id: Long): Flow<FlashCardDeckEntity?>
+    fun observeById(id: String): Flow<FlashCardDeckEntity?>
+
+    @Query("SELECT * FROM flashcard_decks WHERE id = :id")
+    suspend fun getById(id: String): FlashCardDeckEntity?
 
     @Insert
-    suspend fun insert(deck: FlashCardDeckEntity): Long
+    suspend fun insert(deck: FlashCardDeckEntity)
 
     @Update
     suspend fun update(deck: FlashCardDeckEntity)
 
     @Delete
     suspend fun delete(deck: FlashCardDeckEntity)
+
+    @Query("DELETE FROM flashcard_decks WHERE id = :id")
+    suspend fun deleteById(id: String)
 }

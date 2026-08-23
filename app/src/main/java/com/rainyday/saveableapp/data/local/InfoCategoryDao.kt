@@ -13,14 +13,20 @@ interface InfoCategoryDao {
     fun observeCategories(): Flow<List<InfoCategoryEntity>>
 
     @Query("SELECT * FROM info_categories WHERE id = :id")
-    fun observeById(id: Long): Flow<InfoCategoryEntity?>
+    fun observeById(id: String): Flow<InfoCategoryEntity?>
+
+    @Query("SELECT * FROM info_categories WHERE id = :id")
+    suspend fun getById(id: String): InfoCategoryEntity?
 
     @Insert
-    suspend fun insert(category: InfoCategoryEntity): Long
+    suspend fun insert(category: InfoCategoryEntity)
 
     @Update
     suspend fun update(category: InfoCategoryEntity)
 
     @Delete
     suspend fun delete(category: InfoCategoryEntity)
+
+    @Query("DELETE FROM info_categories WHERE id = :id")
+    suspend fun deleteById(id: String)
 }

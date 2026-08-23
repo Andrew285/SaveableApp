@@ -41,14 +41,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 import com.rainyday.saveableapp.BuildConfig
 import com.rainyday.saveableapp.data.prefs.ThemeMode
-import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.PinSetupDialog
 import com.rainyday.saveableapp.ui.screens.todo.formatDate
 import kotlinx.coroutines.launch
@@ -56,21 +53,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen() {
-    val container = appContainer()
     val context = LocalContext.current
-    val viewModel: SettingsViewModel = viewModel(
-        factory = viewModelFactory {
-            initializer {
-                SettingsViewModel(
-                    container.preferencesRepository,
-                    container.backupRepository,
-                    container.driveBackupRepository,
-                    container.firebaseAuthRepository,
-                    container.autoBackupScheduler
-                )
-            }
-        }
-    )
+    val viewModel: SettingsViewModel = hiltViewModel()
 
     val themeMode by viewModel.themeMode.collectAsState()
     val dynamicColorEnabled by viewModel.dynamicColorEnabled.collectAsState()
@@ -79,6 +63,7 @@ fun SettingsScreen() {
     val appPinIsSet by viewModel.appPinIsSet.collectAsState()
     val driveLastBackupAt by viewModel.driveLastBackupAt.collectAsState()
     val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsState()
+    val lastSyncAt by viewModel.lastSyncAt.collectAsState()
 
     var showPinSetup by remember { mutableStateOf(false) }
     var driveAccount by remember { mutableStateOf(viewModel.driveBackupRepository.getSignedInAccount()) }
@@ -221,6 +206,31 @@ fun SettingsScreen() {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            SettingsSectionTitle("Sync")
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                if (driveAccount != null) {
+                    Text(
+                        text = "Your lists, tasks, flashcards, and info are kept in sync across devices signed in to ${driveAccount?.email}.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = lastSyncAt?.let { "Last synced ${formatDate(it)}" } ?: "Not synced yet",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                } else {
+                    Text(
+                        text = "Sign in with Google below (under Backup) to sync your data across devices.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

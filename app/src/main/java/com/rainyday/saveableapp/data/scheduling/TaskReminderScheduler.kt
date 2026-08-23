@@ -17,7 +17,7 @@ class TaskReminderScheduler(private val context: Context) {
     private val alarmManager get() = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     /** Schedules a reminder for [dueDate], or cancels any existing one if [dueDate] is null or already past. */
-    fun schedule(taskId: Long, title: String, dueDate: Long?) {
+    fun schedule(taskId: String, title: String, dueDate: Long?) {
         if (dueDate == null) {
             cancel(taskId)
             return
@@ -33,18 +33,18 @@ class TaskReminderScheduler(private val context: Context) {
         }
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            taskId.toInt(),
+            taskId.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         runCatching { alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent) }
     }
 
-    fun cancel(taskId: Long) {
+    fun cancel(taskId: String) {
         val intent = Intent(context, TaskReminderReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            taskId.toInt(),
+            taskId.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

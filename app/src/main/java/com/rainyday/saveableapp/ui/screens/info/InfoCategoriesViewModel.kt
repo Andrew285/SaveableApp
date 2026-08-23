@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.rainyday.saveableapp.data.local.InfoCategoryEntity
 import com.rainyday.saveableapp.data.repository.InfoCategorySnapshot
 import com.rainyday.saveableapp.data.repository.InfoRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -12,7 +14,8 @@ import kotlinx.coroutines.launch
 
 data class InfoCategoryUiModel(val category: InfoCategoryEntity, val itemCount: Int)
 
-class InfoCategoriesViewModel(private val repository: InfoRepository) : ViewModel() {
+@HiltViewModel
+class InfoCategoriesViewModel @Inject constructor(private val repository: InfoRepository) : ViewModel() {
     // null while the first Room emission hasn't arrived yet, so the UI can tell "loading" apart from "empty".
     private val _categories = MutableStateFlow<List<InfoCategoryUiModel>?>(null)
     val categories: StateFlow<List<InfoCategoryUiModel>?> = _categories

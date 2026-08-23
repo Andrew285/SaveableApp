@@ -11,12 +11,15 @@ import com.rainyday.saveableapp.data.prefs.PreferencesRepository
 import com.rainyday.saveableapp.data.prefs.ThemeMode
 import com.rainyday.saveableapp.data.repository.BackupRepository
 import com.rainyday.saveableapp.data.scheduling.AutoBackupScheduler
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class SettingsViewModel(
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val backupRepository: BackupRepository,
     val driveBackupRepository: DriveBackupRepository,
@@ -43,6 +46,9 @@ class SettingsViewModel(
 
     val autoBackupEnabled: StateFlow<Boolean> = preferencesRepository.autoBackupEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val lastSyncAt: StateFlow<Long?> = preferencesRepository.lastSyncAt
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /**
      * Links a Google sign-in (already used for Drive backup) to a Firebase Auth session, so the

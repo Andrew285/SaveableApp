@@ -1,20 +1,27 @@
 package com.rainyday.saveableapp.ui.screens.flashcards
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.rainyday.saveableapp.data.local.FlashCardDeckEntity
 import com.rainyday.saveableapp.data.local.FlashCardEntity
 import com.rainyday.saveableapp.data.repository.FlashCardsRepository
+import com.rainyday.saveableapp.navigation.Screen
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class FlashCardViewModel(
-    private val deckId: Long,
+@HiltViewModel
+class FlashCardViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val repository: FlashCardsRepository
 ) : ViewModel() {
+    private val deckId: String = savedStateHandle.toRoute<Screen.FlashCardDeckDetail>().deckId
     val deck: StateFlow<FlashCardDeckEntity?> = repository.observeDeck(deckId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 

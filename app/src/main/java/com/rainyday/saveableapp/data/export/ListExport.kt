@@ -18,7 +18,7 @@ private const val LINE_HEIGHT = 18f
 fun buildListCsv(
     items: List<SimpleListItemEntity>,
     fields: List<FieldDefinitionEntity>,
-    valuesByItem: Map<Long, List<FieldValueEntity>>
+    valuesByItem: Map<String, List<FieldValueEntity>>
 ): String {
     val header = listOf("Text", "Note", "URL", "Checked") + fields.map { it.name }
     val rows = mutableListOf(header)
@@ -45,7 +45,7 @@ fun writeListPdf(
     listName: String,
     items: List<SimpleListItemEntity>,
     fields: List<FieldDefinitionEntity>,
-    valuesByItem: Map<Long, List<FieldValueEntity>>
+    valuesByItem: Map<String, List<FieldValueEntity>>
 ) {
     val document = PdfDocument()
     val titlePaint = Paint().apply { textSize = 18f; isFakeBoldText = true }

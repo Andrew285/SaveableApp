@@ -24,11 +24,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.rainyday.saveableapp.data.local.InfoCategoryEntity
-import com.rainyday.saveableapp.ui.appContainer
 import com.rainyday.saveableapp.ui.components.DirectoryCard
 import com.rainyday.saveableapp.ui.components.EditListDialog
 import com.rainyday.saveableapp.ui.components.EmptyState
@@ -41,13 +38,10 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun InfoCategoriesScreen(
-    onOpenCategory: (Long) -> Unit,
+    onOpenCategory: (String) -> Unit,
     onOpenSearch: () -> Unit
 ) {
-    val container = appContainer()
-    val viewModel: InfoCategoriesViewModel = viewModel(
-        factory = viewModelFactory { initializer { InfoCategoriesViewModel(container.infoRepository) } }
-    )
+    val viewModel: InfoCategoriesViewModel = hiltViewModel()
     val categories by viewModel.categories.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()

@@ -4,17 +4,25 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.rainyday.saveableapp.data.scheduling.TaskReminderScheduler
-import com.rainyday.saveableapp.di.AppContainer
+import com.rainyday.saveableapp.data.sync.SyncLifecycleController
+import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
-class SaveableApplication : Application() {
-    lateinit var container: AppContainer
-        private set
+@HiltAndroidApp
+class SaveableApplication : Application(), Configuration.Provider {
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var syncLifecycleController: SyncLifecycleController
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     override fun onCreate() {
         super.onCreate()
-        container = AppContainer(this)
         createNotificationChannel()
+        syncLifecycleController.start()
     }
 
     private fun createNotificationChannel() {

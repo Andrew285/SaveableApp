@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.google.services)
+    alias(libs.plugins.hilt.android)
 }
 
 // Release signing credentials live in a gitignored keystore.properties (see keystore.properties.example)
@@ -126,14 +127,34 @@ dependencies {
     implementation(libs.play.services.auth)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.google.api.client.android) {
         exclude(group = "org.apache.httpcomponents")
+        // google-http-client's optional OpenCensus tracing pulls io.grpc:grpc-context at a newer
+        // version than Firestore's own (pinned, mutually-compatible) grpc-* stack, which bumps
+        // grpc-api/grpc-context app-wide and produces a binary-incompatible mix at runtime
+        // (NoClassDefFoundError: Lio/grpc/InternalGlobalInterceptors). Neither is needed for plain
+        // REST calls to the Drive API, so drop them rather than fight the version conflict.
+        exclude(group = "io.grpc")
+        exclude(group = "io.opencensus")
     }
     implementation(libs.google.api.services.drive) {
         exclude(group = "org.apache.httpcomponents")
+        exclude(group = "io.grpc")
+        exclude(group = "io.opencensus")
     }
-    implementation(libs.google.http.client.gson)
+    implementation(libs.google.http.client.gson) {
+        exclude(group = "io.grpc")
+        exclude(group = "io.opencensus")
+    }
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.android.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+    implementation(libs.androidx.work.runtime)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

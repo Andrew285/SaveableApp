@@ -6,6 +6,8 @@ import com.rainyday.saveableapp.data.local.SimpleListItemEntity
 import com.rainyday.saveableapp.data.local.TaskWithTags
 import com.rainyday.saveableapp.data.repository.ListsRepository
 import com.rainyday.saveableapp.data.repository.TodoRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,7 +23,8 @@ data class SearchResults(
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class SearchViewModel(
+@HiltViewModel
+class SearchViewModel @Inject constructor(
     private val todoRepository: TodoRepository,
     private val listsRepository: ListsRepository
 ) : ViewModel() {

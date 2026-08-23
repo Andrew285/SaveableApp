@@ -23,13 +23,14 @@ enum class FieldType { TEXT, NUMBER, RATING, DATE }
     indices = [Index("listId")]
 )
 data class FieldDefinitionEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val listId: Long,
+    @PrimaryKey val id: String,
+    val listId: String,
     val name: String,
     val type: FieldType,
     val colorHex: String,
     val position: Int = 0,
-    val createdAt: Long
+    val createdAt: Long,
+    val updatedAt: Long
 )
 
 /** One item's value for one field, stored as raw text and interpreted per the field's [FieldType]. */
@@ -53,10 +54,11 @@ data class FieldDefinitionEntity(
     indices = [Index("itemId"), Index("fieldId")]
 )
 data class FieldValueEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val itemId: Long,
-    val fieldId: Long,
-    val value: String
+    @PrimaryKey val id: String,
+    val itemId: String,
+    val fieldId: String,
+    val value: String,
+    val updatedAt: Long
 )
 
 /** A field to pre-create when a list is created from a template. Not a Room entity. */

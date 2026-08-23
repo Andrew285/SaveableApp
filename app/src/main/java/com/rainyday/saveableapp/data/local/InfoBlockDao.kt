@@ -7,12 +7,15 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
-data class InfoCategoryCount(val categoryId: Long, val total: Int)
+data class InfoCategoryCount(val categoryId: String, val total: Int)
 
 @Dao
 interface InfoBlockDao {
     @Query("SELECT * FROM info_blocks WHERE categoryId = :categoryId ORDER BY position ASC")
-    fun observeBlocksForCategory(categoryId: Long): Flow<List<InfoBlockEntity>>
+    fun observeBlocksForCategory(categoryId: String): Flow<List<InfoBlockEntity>>
+
+    @Query("SELECT * FROM info_blocks WHERE id = :id")
+    suspend fun getById(id: String): InfoBlockEntity?
 
     @Query("SELECT categoryId, COUNT(*) as total FROM info_blocks GROUP BY categoryId")
     fun observeCounts(): Flow<List<InfoCategoryCount>>
@@ -27,11 +30,14 @@ interface InfoBlockDao {
     fun search(query: String): Flow<List<InfoBlockEntity>>
 
     @Insert
-    suspend fun insert(block: InfoBlockEntity): Long
+    suspend fun insert(block: InfoBlockEntity)
 
     @Update
     suspend fun update(block: InfoBlockEntity)
 
     @Delete
     suspend fun delete(block: InfoBlockEntity)
+
+    @Query("DELETE FROM info_blocks WHERE id = :id")
+    suspend fun deleteById(id: String)
 }

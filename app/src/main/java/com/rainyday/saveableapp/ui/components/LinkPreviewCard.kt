@@ -36,7 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.rainyday.saveableapp.data.links.LinkPreview
 import com.rainyday.saveableapp.data.links.linkHostLabel
-import com.rainyday.saveableapp.ui.appContainer
+import com.rainyday.saveableapp.ui.rememberAppEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -49,12 +49,12 @@ import java.net.URL
  */
 @Composable
 fun LinkPreviewCard(url: String, modifier: Modifier = Modifier) {
-    val container = appContainer()
+    val linkPreviewRepository = rememberAppEntryPoint().linkPreviewRepository()
     val context = LocalContext.current
     var preview by remember(url) { mutableStateOf<LinkPreview?>(null) }
 
     LaunchedEffect(url) {
-        preview = container.linkPreviewRepository.preview(url)
+        preview = linkPreviewRepository.preview(url)
     }
 
     val title = preview?.title?.takeIf { it.isNotBlank() } ?: linkHostLabel(url) ?: url
