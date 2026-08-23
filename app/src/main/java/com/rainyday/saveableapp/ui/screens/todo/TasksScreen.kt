@@ -89,7 +89,7 @@ fun TasksScreen(onOpenSearch: () -> Unit) {
                 TasksViewModel(
                     container.todoRepository,
                     container.preferencesRepository,
-                    container.groqRepository,
+                    container.openRouterRepository,
                     container.taskReminderScheduler
                 )
             }

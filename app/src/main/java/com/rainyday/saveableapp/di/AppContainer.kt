@@ -1,7 +1,8 @@
 package com.rainyday.saveableapp.di
 
 import android.content.Context
-import com.rainyday.saveableapp.data.ai.GroqRepository
+import com.rainyday.saveableapp.data.ai.OpenRouterRepository
+import com.rainyday.saveableapp.data.auth.FirebaseAuthRepository
 import com.rainyday.saveableapp.data.drive.DriveBackupRepository
 import com.rainyday.saveableapp.data.links.LinkPreviewRepository
 import com.rainyday.saveableapp.data.local.AppDatabase
@@ -40,7 +41,9 @@ class AppContainer(context: Context) {
 
     val preferencesRepository by lazy { PreferencesRepository(context.applicationContext) }
 
-    val groqRepository by lazy { GroqRepository(preferencesRepository) }
+    val firebaseAuthRepository by lazy { FirebaseAuthRepository() }
+
+    val openRouterRepository by lazy { OpenRouterRepository(firebaseAuthRepository) }
 
     val linkPreviewRepository by lazy { LinkPreviewRepository(database.linkPreviewDao()) }
 

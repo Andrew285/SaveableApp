@@ -1,9 +1,20 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
+
+// Release signing credentials live in a gitignored keystore.properties (see keystore.properties.example)
+// so the keystore path and passwords never land in source control.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) load(keystorePropertiesFile.inputStream())
+}
+val hasReleaseSigning = keystorePropertiesFile.exists()
 
 android {
     namespace = "com.rainyday.saveableapp"
@@ -23,12 +34,49 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
+            )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+    }
+    flavorDimensions += "environment"
+    productFlavors {
+        // Points at the "Saveable App - Stage" Firebase project (saveableapp-5b75b).
+        // Config file: app/src/stage/google-services.json
+        // Suffixed package name (com.rainyday.saveableapp.stage) so it can be registered as its own
+        // Android OAuth client — the base package + debug SHA-1 combo is claimed by another project.
+        create("stage") {
+            dimension = "environment"
+            applicationIdSuffix = ".stage"
+            buildConfigField(
+                "String",
+                "AI_PARSE_ENDPOINT",
+                "\"https://us-central1-saveableapp-5b75b.cloudfunctions.net/aiParse\""
+            )
+        }
+        create("prod") {
+            dimension = "environment"
+            buildConfigField(
+                "String",
+                "AI_PARSE_ENDPOINT",
+                "\"https://us-central1-saveable-app-prod.cloudfunctions.net/aiParse\""
             )
         }
     }
@@ -76,6 +124,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.reorderable)
     implementation(libs.play.services.auth)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.google.api.client.android) {
         exclude(group = "org.apache.httpcomponents")
     }

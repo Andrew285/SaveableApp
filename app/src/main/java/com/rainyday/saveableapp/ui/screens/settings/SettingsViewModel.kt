@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.rainyday.saveableapp.data.auth.FirebaseAuthRepository
 import com.rainyday.saveableapp.data.drive.DriveBackupRepository
 import com.rainyday.saveableapp.data.prefs.PreferencesRepository
 import com.rainyday.saveableapp.data.prefs.ThemeMode
@@ -19,6 +20,7 @@ class SettingsViewModel(
     private val preferencesRepository: PreferencesRepository,
     private val backupRepository: BackupRepository,
     val driveBackupRepository: DriveBackupRepository,
+    private val firebaseAuthRepository: FirebaseAuthRepository,
     private val autoBackupScheduler: AutoBackupScheduler
 ) : ViewModel() {
     val themeMode: StateFlow<ThemeMode> = preferencesRepository.themeMode
@@ -39,14 +41,16 @@ class SettingsViewModel(
     val driveLastBackupAt: StateFlow<Long?> = preferencesRepository.driveLastBackupAt
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val groqApiKey: StateFlow<String?> = preferencesRepository.groqApiKey
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
     val autoBackupEnabled: StateFlow<Boolean> = preferencesRepository.autoBackupEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    fun setGroqApiKey(key: String) {
-        viewModelScope.launch { preferencesRepository.setGroqApiKey(key) }
+    /**
+     * Links a Google sign-in (already used for Drive backup) to a Firebase Auth session, so the
+     * AI-parsing Cloud Function can identify this user and enforce their call quota. Safe to call
+     * every time the user (re)signs in with Google.
+     */
+    fun signInToFirebase(account: GoogleSignInAccount) {
+        viewModelScope.launch { firebaseAuthRepository.signInWithGoogleAccount(account) }
     }
 
     /** Toggles the daily background Drive backup and (de)schedules the alarm that drives it. */

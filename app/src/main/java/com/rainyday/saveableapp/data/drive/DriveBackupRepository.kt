@@ -14,6 +14,7 @@ import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File as DriveFile
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.prefs.PreferencesRepository
 import com.rainyday.saveableapp.data.repository.BackupRepository
 import java.io.ByteArrayOutputStream
@@ -39,6 +40,9 @@ class DriveBackupRepository(
     fun signInClient(): GoogleSignInClient {
         val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
+            // Also requests an ID token so this same sign-in can be linked to a Firebase Auth
+            // session (see FirebaseAuthRepository), which authenticates AI-parsing calls.
+            .requestIdToken(context.getString(R.string.default_web_client_id))
             .requestScopes(driveScope)
             .build()
         return GoogleSignIn.getClient(context, options)

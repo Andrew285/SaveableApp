@@ -69,7 +69,7 @@ fun SimpleListsScreen(
     val viewModel: SimpleListsViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                SimpleListsViewModel(container.listsRepository, container.groqRepository, container.linkPreviewRepository)
+                SimpleListsViewModel(container.listsRepository, container.openRouterRepository, container.linkPreviewRepository)
             }
         }
     )

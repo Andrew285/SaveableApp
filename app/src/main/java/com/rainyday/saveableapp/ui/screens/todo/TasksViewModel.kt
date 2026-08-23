@@ -2,7 +2,7 @@ package com.rainyday.saveableapp.ui.screens.todo
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rainyday.saveableapp.data.ai.GroqRepository
+import com.rainyday.saveableapp.data.ai.OpenRouterRepository
 import com.rainyday.saveableapp.data.local.Priority
 import com.rainyday.saveableapp.data.local.RecurrenceRule
 import com.rainyday.saveableapp.data.local.TagEntity
@@ -51,7 +51,7 @@ private const val UNCATEGORIZED_LIST_ICON_KEY = "checklist"
 class TasksViewModel(
     private val repository: TodoRepository,
     private val preferencesRepository: PreferencesRepository,
-    private val groqRepository: GroqRepository,
+    private val openRouterRepository: OpenRouterRepository,
     private val reminderScheduler: TaskReminderScheduler
 ) : ViewModel() {
     val lists: StateFlow<List<TodoListEntity>> = repository.observeLists()
@@ -98,11 +98,11 @@ class TasksViewModel(
     private val _aiParsing = MutableStateFlow(false)
     val aiParsing: StateFlow<Boolean> = _aiParsing
 
-    /** Sends [input] to Groq to extract title, notes, priority, due date, list, and tags. */
+    /** Sends [input] to the AI parser to extract title, notes, priority, due date, list, and tags. */
     suspend fun parseTaskWithAi(input: String): AiParseOutcome {
         _aiParsing.value = true
         return try {
-            val result = groqRepository.parseTask(
+            val result = openRouterRepository.parseTask(
                 input = input,
                 existingListNames = lists.value.map { it.name },
                 existingTagNames = tags.value.map { it.name }

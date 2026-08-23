@@ -3,7 +3,7 @@ package com.rainyday.saveableapp.ui.screens.lists
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rainyday.saveableapp.data.ai.FieldSpec
-import com.rainyday.saveableapp.data.ai.GroqRepository
+import com.rainyday.saveableapp.data.ai.OpenRouterRepository
 import com.rainyday.saveableapp.data.ai.SimpleListContext
 import com.rainyday.saveableapp.data.links.LinkPreviewRepository
 import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
@@ -46,7 +46,7 @@ private val URL_REGEX = Regex("""https?://\S+""")
 
 class SimpleListsViewModel(
     private val repository: ListsRepository,
-    private val groqRepository: GroqRepository,
+    private val openRouterRepository: OpenRouterRepository,
     private val linkPreviewRepository: LinkPreviewRepository
 ) : ViewModel() {
     // null while the first Room emission hasn't arrived yet, so the UI can tell "loading" apart from "empty".
@@ -106,7 +106,7 @@ class SimpleListsViewModel(
         }
     }
 
-    /** Sends [input] to Groq to extract an item's title, note, link, destination list, and custom field values. */
+    /** Sends [input] to the AI parser to extract an item's title, note, link, destination list, and custom field values. */
     suspend fun parseItemWithAi(input: String): AiListItemOutcome {
         _aiParsing.value = true
         return try {
@@ -129,7 +129,7 @@ class SimpleListsViewModel(
                     fields = fieldsSnapshot[entry.list.id].orEmpty().map { FieldSpec(it.name, it.type) }
                 )
             }
-            val result = groqRepository.parseListItem(input = augmentedInput, existingLists = contexts)
+            val result = openRouterRepository.parseListItem(input = augmentedInput, existingLists = contexts)
             result.fold(
                 onSuccess = { parsed ->
                     val listId = resolveListId(parsed.listName)

@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // isPremium is set by hand (Firebase console) or a future billing webhook — never by the client.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Daily call counters are only ever written by the Cloud Function (Admin SDK bypasses these
+    // rules); the owning user may read their own counters to show remaining quota in the app.
+    match /usage/{uid}/daily/{date} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+  }
+}

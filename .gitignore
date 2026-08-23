@@ -44,8 +44,9 @@ render.experimental.xml
 # Keystore files
 *.jks
 *.keystore
+keystore.properties
 
-# Google Services (e.g. APIs or Firebase)
+# Google Services (e.g. APIs or Firebase) — one per flavor under app/src/<flavor>/
 google-services.json
 
 # Android Profiling
@@ -53,3 +54,11 @@ google-services.json
 
 # Local reference assets
 app/src/main/java/com/rainyday/saveableapp/assets/*.pdf
+app/src/main/java/com/rainyday/saveableapp/assets/*.png
+
+# Firebase Cloud Functions
+functions/node_modules/
+functions/lib/
+.firebase/
+firebase-debug.log
+firebase-debug.*.log

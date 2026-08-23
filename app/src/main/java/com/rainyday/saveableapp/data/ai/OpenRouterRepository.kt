@@ -1,9 +1,10 @@
 package com.rainyday.saveableapp.data.ai
 
+import com.rainyday.saveableapp.BuildConfig
+import com.rainyday.saveableapp.data.auth.FirebaseAuthRepository
 import com.rainyday.saveableapp.data.local.FieldType
 import com.rainyday.saveableapp.data.local.Priority
 import com.rainyday.saveableapp.data.local.RecurrenceRule
-import com.rainyday.saveableapp.data.prefs.PreferencesRepository
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
@@ -11,7 +12,6 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -22,8 +22,8 @@ import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
-private const val ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
-private const val MODEL = "openai/gpt-oss-20b"
+/** Per-flavor Cloud Function URL — see the "stage"/"prod" product flavors in app/build.gradle.kts. */
+private val ENDPOINT = BuildConfig.AI_PARSE_ENDPOINT
 private val ISO_DATE = "yyyy-MM-dd"
 
 /** Fields extracted from free-form task text. Any field the model can't determine is left null. */
@@ -45,7 +45,7 @@ data class ParsedListItem(
     val note: String?,
     val url: String?,
     val listName: String?,
-    /** Custom field values keyed by the field's own name (as passed into [GroqRepository.parseListItem]). */
+    /** Custom field values keyed by the field's own name (as passed into [OpenRouterRepository.parseListItem]). */
     val fieldValues: Map<String, String>,
     /** A brand-new list name the model suggests when none of the existing lists fit, or null. */
     val suggestedNewListName: String?
@@ -58,10 +58,15 @@ data class FieldSpec(val name: String, val type: FieldType)
 data class SimpleListContext(val name: String, val fields: List<FieldSpec> = emptyList())
 
 /**
- * Calls Groq's OpenAI-compatible chat completions endpoint (free-tier `openai/gpt-oss-20b`) to turn
- * a quick-add task string into structured fields. The API key is user-supplied (Settings, testing only).
+ * Calls our Firebase Cloud Function ("aiParse"), which itself calls OpenRouter's OpenAI-compatible
+ * chat completions endpoint (`openai/gpt-oss-20b`), to turn quick-add text into structured fields.
+ *
+ * The OpenRouter API key never lives on-device: the Cloud Function holds it as a secret and forwards
+ * the request. The caller must be signed in with Google (see [FirebaseAuthRepository]) — its Firebase
+ * ID token is sent as a bearer token so the function can identify the user and enforce their
+ * subscription's daily call quota.
  */
-class GroqRepository(private val preferencesRepository: PreferencesRepository) {
+class OpenRouterRepository(private val firebaseAuthRepository: FirebaseAuthRepository) {
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
@@ -73,15 +78,15 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
         existingTagNames: List<String>
     ): Result<ParsedTask> = withContext(Dispatchers.IO) {
         runCatching {
-            val apiKey = preferencesRepository.groqApiKey.first()?.trim()
-            require(!apiKey.isNullOrEmpty()) { "Add a Groq API key in Settings to use AI task parsing." }
+            val idToken = firebaseAuthRepository.getIdToken()
+            require(!idToken.isNullOrEmpty()) { "Sign in with Google in Settings to use AI task parsing." }
 
             val systemPrompt = buildSystemPrompt(Date(), existingListNames, existingTagNames)
-            val responseBody = postChatCompletion(apiKey, systemPrompt, input)
+            val responseBody = postChatCompletion(idToken, systemPrompt, input)
 
-            val chatResponse = json.decodeFromString<GroqChatResponse>(responseBody)
+            val chatResponse = json.decodeFromString<AiChatResponse>(responseBody)
             val content = chatResponse.choices.firstOrNull()?.message?.content
-            require(!content.isNullOrBlank()) { "Groq returned an empty response." }
+            require(!content.isNullOrBlank()) { "The AI parser returned an empty response." }
 
             json.decodeFromString<ParsedTaskDto>(content).toParsedTask(fallbackTitle = input.trim())
         }
@@ -92,15 +97,15 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
         existingLists: List<SimpleListContext>
     ): Result<ParsedListItem> = withContext(Dispatchers.IO) {
         runCatching {
-            val apiKey = preferencesRepository.groqApiKey.first()?.trim()
-            require(!apiKey.isNullOrEmpty()) { "Add a Groq API key in Settings to use AI task parsing." }
+            val idToken = firebaseAuthRepository.getIdToken()
+            require(!idToken.isNullOrEmpty()) { "Sign in with Google in Settings to use AI task parsing." }
 
             val systemPrompt = buildListItemSystemPrompt(Date(), existingLists)
-            val responseBody = postChatCompletion(apiKey, systemPrompt, input)
+            val responseBody = postChatCompletion(idToken, systemPrompt, input)
 
-            val chatResponse = json.decodeFromString<GroqChatResponse>(responseBody)
+            val chatResponse = json.decodeFromString<AiChatResponse>(responseBody)
             val content = chatResponse.choices.firstOrNull()?.message?.content
-            require(!content.isNullOrBlank()) { "Groq returned an empty response." }
+            require(!content.isNullOrBlank()) { "The AI parser returned an empty response." }
 
             json.decodeFromString<ParsedListItemDto>(content)
                 .toParsedListItem(fallbackText = input.trim(), existingLists = existingLists)
@@ -240,9 +245,9 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
         }
     }
 
-    private fun postChatCompletion(apiKey: String, systemPrompt: String, userInput: String): String {
+    /** Posts to our Cloud Function, authenticated with the caller's Firebase ID token (not an OpenRouter key). */
+    private fun postChatCompletion(idToken: String, systemPrompt: String, userInput: String): String {
         val requestBody = buildJsonObject {
-            put("model", MODEL)
             put("temperature", 0.2)
             putJsonObject("response_format") { put("type", "json_object") }
             putJsonArray("messages") {
@@ -259,7 +264,7 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
 
         val connection = (URL(ENDPOINT).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
-            setRequestProperty("Authorization", "Bearer $apiKey")
+            setRequestProperty("Authorization", "Bearer $idToken")
             setRequestProperty("Content-Type", "application/json")
             doOutput = true
             connectTimeout = 15_000
@@ -271,11 +276,17 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
             val responseCode = connection.responseCode
             val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
             val responseText = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            check(responseCode in 200..299) { "Groq request failed ($responseCode): ${responseText.take(300)}" }
+            check(responseCode in 200..299) { describeError(responseCode, responseText) }
             responseText
         } finally {
             connection.disconnect()
         }
+    }
+
+    /** Surfaces the Cloud Function's `{"error": "..."}` message (e.g. quota exceeded) when present. */
+    private fun describeError(responseCode: Int, responseText: String): String {
+        val message = runCatching { json.decodeFromString<AiErrorDto>(responseText).error }.getOrNull()
+        return message ?: "AI request failed ($responseCode): ${responseText.take(300)}"
     }
 
     private fun ParsedTaskDto.toParsedTask(fallbackTitle: String): ParsedTask {
@@ -337,13 +348,16 @@ class GroqRepository(private val preferencesRepository: PreferencesRepository) {
 }
 
 @Serializable
-private data class GroqChatResponse(val choices: List<GroqChoice> = emptyList())
+private data class AiChatResponse(val choices: List<AiChoice> = emptyList())
 
 @Serializable
-private data class GroqChoice(val message: GroqMessage)
+private data class AiChoice(val message: AiMessage)
 
 @Serializable
-private data class GroqMessage(val content: String? = null)
+private data class AiMessage(val content: String? = null)
+
+@Serializable
+private data class AiErrorDto(val error: String? = null)
 
 @Serializable
 private data class ParsedTaskDto(

@@ -27,7 +27,6 @@ class PreferencesRepository(private val context: Context) {
         val DRIVE_BACKUP_FILE_ID = stringPreferencesKey("drive_backup_file_id")
         val DRIVE_LAST_BACKUP_AT = longPreferencesKey("drive_last_backup_at")
         val LAST_USED_TODO_LIST_ID = longPreferencesKey("last_used_todo_list_id")
-        val GROQ_API_KEY = stringPreferencesKey("groq_api_key")
         val AUTO_BACKUP_ENABLED = booleanPreferencesKey("auto_backup_enabled")
     }
 
@@ -59,9 +58,6 @@ class PreferencesRepository(private val context: Context) {
 
     /** Last to-do list a task was added to, used to default the quick-add bar's destination list. */
     val lastUsedTodoListId: Flow<Long?> = context.dataStore.data.map { prefs -> prefs[Keys.LAST_USED_TODO_LIST_ID] }
-
-    /** API key for the Groq chat completions API, used to parse quick-add task text. Testing only. */
-    val groqApiKey: Flow<String?> = context.dataStore.data.map { prefs -> prefs[Keys.GROQ_API_KEY] }
 
     val autoBackupEnabled: Flow<Boolean> = context.dataStore.data.map { prefs -> prefs[Keys.AUTO_BACKUP_ENABLED] ?: false }
 
@@ -113,12 +109,6 @@ class PreferencesRepository(private val context: Context) {
 
     suspend fun setLastUsedTodoListId(listId: Long) {
         context.dataStore.edit { it[Keys.LAST_USED_TODO_LIST_ID] = listId }
-    }
-
-    suspend fun setGroqApiKey(key: String) {
-        context.dataStore.edit { prefs ->
-            if (key.isBlank()) prefs.remove(Keys.GROQ_API_KEY) else prefs[Keys.GROQ_API_KEY] = key.trim()
-        }
     }
 
     suspend fun setAutoBackupEnabled(enabled: Boolean) {
