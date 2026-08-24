@@ -19,9 +19,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import com.rainyday.saveableapp.R
+import com.rainyday.saveableapp.ui.theme.Dimens
 import com.rainyday.saveableapp.ui.theme.EyebrowTextStyle
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
 /**
  * Header used at the top of each bottom-tab screen's scrollable content: an optional small mono
@@ -36,12 +40,12 @@ fun ScreenHeader(
     eyebrow: String? = null,
     subtitle: String? = null,
     onActionClick: (() -> Unit)? = null,
-    actionContentDescription: String = "Search"
+    actionContentDescription: String = stringResource(R.string.cd_search)
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(horizontal = Dimens.d20, vertical = Dimens.d8),
         verticalAlignment = Alignment.Top
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -56,7 +60,7 @@ fun ScreenHeader(
                 text = title,
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(top = if (eyebrow != null) 2.dp else 0.dp)
+                modifier = Modifier.padding(top = if (eyebrow != null) Dimens.d2 else Dimens.d0)
             )
             if (subtitle != null) {
                 Text(
@@ -65,15 +69,15 @@ fun ScreenHeader(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp)
+                    modifier = Modifier.padding(top = Dimens.d2)
                 )
             }
         }
         if (onActionClick != null) {
             Box(
                 modifier = Modifier
-                    .padding(start = 12.dp)
-                    .size(40.dp)
+                    .padding(start = Dimens.d12)
+                    .size(Dimens.d40)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable(onClick = onActionClick),
@@ -94,13 +98,13 @@ fun ScreenHeader(
 fun DetailHeader(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    backLabel: String = "Back",
+    backLabel: String = stringResource(R.string.cd_back),
     trailingLabel: String? = null
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = Dimens.d20, vertical = Dimens.d12),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
@@ -111,13 +115,13 @@ fun DetailHeader(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = backLabel,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(Dimens.d18)
             )
             Text(
                 text = backLabel,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 6.dp)
+                modifier = Modifier.padding(start = Dimens.d6)
             )
         }
         if (trailingLabel != null) {
@@ -127,11 +131,32 @@ fun DetailHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 12.dp),
+                    .padding(start = Dimens.d12),
                 textAlign = androidx.compose.ui.text.style.TextAlign.End,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ScreenHeaderPreview() {
+    SaveableAppTheme {
+        ScreenHeader(
+            eyebrow = "// TASKS",
+            title = "Active Tasks",
+            subtitle = "Everything on your plate",
+            onActionClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun DetailHeaderPreview() {
+    SaveableAppTheme {
+        DetailHeader(onBack = {}, trailingLabel = "3 items")
     }
 }

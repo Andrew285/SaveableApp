@@ -30,7 +30,7 @@ class SettingsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeMode.SYSTEM)
 
     val dynamicColorEnabled: StateFlow<Boolean> = preferencesRepository.dynamicColorEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val infoLockEnabled: StateFlow<Boolean> = preferencesRepository.infoLockEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)

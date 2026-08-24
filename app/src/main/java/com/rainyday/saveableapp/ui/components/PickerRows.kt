@@ -19,8 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import com.rainyday.saveableapp.ui.theme.AccentColors
+import com.rainyday.saveableapp.ui.theme.AppAlpha
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
 @Composable
 fun ColorPickerRow(
@@ -30,18 +33,18 @@ fun ColorPickerRow(
 ) {
     LazyRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.d12)
     ) {
         items(AccentColors.palette) { hex ->
             val color = parseHexColor(hex)
             val selected = hex.equals(selectedHex, ignoreCase = true)
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(Dimens.d40)
                     .clip(CircleShape)
                     .background(color)
                     .border(
-                        width = if (selected) 3.dp else 0.dp,
+                        width = if (selected) Dimens.d3 else Dimens.d0,
                         color = MaterialTheme.colorScheme.onSurface,
                         shape = CircleShape
                     )
@@ -70,19 +73,19 @@ fun IconPickerRow(
     val accent = parseHexColor(accentHex)
     LazyRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.d12)
     ) {
         items(IconCatalog.icons.keys.toList()) { key ->
             val selected = key == selectedKey
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(if (selected) accent.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant)
+                    .size(Dimens.d44)
+                    .clip(RoundedCornerShape(Dimens.d14))
+                    .background(if (selected) accent.copy(alpha = AppAlpha.a18) else MaterialTheme.colorScheme.surfaceVariant)
                     .border(
-                        width = if (selected) 2.dp else 0.dp,
+                        width = if (selected) Dimens.d2 else Dimens.d0,
                         color = accent,
-                        shape = RoundedCornerShape(14.dp)
+                        shape = RoundedCornerShape(Dimens.d14)
                     )
                     .clickable { onSelect(key) },
                 contentAlignment = Alignment.Center
@@ -94,5 +97,21 @@ fun IconPickerRow(
                 )
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ColorPickerRowPreview() {
+    SaveableAppTheme {
+        ColorPickerRow(selectedHex = AccentColors.palette.first(), onSelect = {})
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun IconPickerRowPreview() {
+    SaveableAppTheme {
+        IconPickerRow(selectedKey = IconCatalog.defaultKey, accentHex = AccentColors.palette.first(), onSelect = {})
     }
 }

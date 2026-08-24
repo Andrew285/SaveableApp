@@ -16,8 +16,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import com.rainyday.saveableapp.R
+import com.rainyday.saveableapp.ui.theme.AppAlpha
+import com.rainyday.saveableapp.ui.theme.Dimens
 import com.rainyday.saveableapp.ui.theme.PillShape
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
 /**
  * Shown when the AI couldn't match anything existing but proposed a new list name instead of quietly
@@ -33,34 +38,42 @@ fun SuggestedListChip(
     Row(
         modifier = modifier
             .clip(PillShape)
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-            .padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = AppAlpha.a10))
+            .padding(start = Dimens.d10, end = Dimens.d10, top = Dimens.d4, bottom = Dimens.d4),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Filled.AutoAwesome,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(Dimens.d16)
         )
         Text(
-            text = "AI suggests: \"$suggestedName\"",
+            text = stringResource(R.string.suggested_list_chip_message, suggestedName),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 6.dp)
+                .padding(start = Dimens.d6)
         )
-        TextButton(onClick = onCreateAndUse) {
-            Text("Create & use", style = MaterialTheme.typography.labelSmall)
+        TextButton(onClick = onCreateAndUse, modifier = Modifier.padding(end = Dimens.d10)) {
+            Text(stringResource(R.string.suggested_list_chip_create_action), style = MaterialTheme.typography.labelLarge)
         }
-        IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+        IconButton(onClick = onDismiss, modifier = Modifier.size(Dimens.d28)) {
             Icon(
                 imageVector = Icons.Filled.Close,
-                contentDescription = "Dismiss suggestion",
+                contentDescription = stringResource(R.string.suggested_list_chip_dismiss_cd),
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(Dimens.d24)
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SuggestedListChipPreview() {
+    SaveableAppTheme {
+        SuggestedListChip(suggestedName = "Groceries", onCreateAndUse = {}, onDismiss = {})
     }
 }

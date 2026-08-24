@@ -18,17 +18,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.local.FieldType
 import com.rainyday.saveableapp.ui.components.ColorPickerRow
 import com.rainyday.saveableapp.ui.theme.AccentColors
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
-internal fun FieldType.label(): String = when (this) {
-    FieldType.TEXT -> "Text"
-    FieldType.NUMBER -> "Number"
-    FieldType.RATING -> "Rating"
-    FieldType.DATE -> "Date"
-}
+@Composable
+internal fun FieldType.label(): String = stringResource(
+    when (this) {
+        FieldType.TEXT -> R.string.field_type_text
+        FieldType.NUMBER -> R.string.field_type_number
+        FieldType.RATING -> R.string.field_type_rating
+        FieldType.DATE -> R.string.field_type_date
+    }
+)
 
 @Composable
 fun FieldEditDialog(
@@ -52,15 +59,15 @@ fun FieldEditDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Field name (e.g. Author)") },
+                    label = { Text(stringResource(R.string.lists_field_name_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Text(
-                    text = "Type",
-                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                    text = stringResource(R.string.lists_field_type_label),
+                    modifier = Modifier.padding(top = Dimens.d16, bottom = Dimens.d8)
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.d8)) {
                     FieldType.entries.forEach { option ->
                         FilterChip(
                             selected = type == option,
@@ -70,17 +77,17 @@ fun FieldEditDialog(
                     }
                 }
                 Text(
-                    text = "Color",
-                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                    text = stringResource(R.string.lists_field_color_label),
+                    modifier = Modifier.padding(top = Dimens.d16, bottom = Dimens.d8)
                 )
                 ColorPickerRow(selectedHex = colorHex, onSelect = { colorHex = it })
                 if (onDelete != null) {
                     TextButton(
                         onClick = onDelete,
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        modifier = Modifier.padding(top = 12.dp)
+                        modifier = Modifier.padding(top = Dimens.d12)
                     ) {
-                        Text("Delete field")
+                        Text(stringResource(R.string.lists_delete_field_action))
                     }
                 }
             }
@@ -89,10 +96,26 @@ fun FieldEditDialog(
             TextButton(
                 enabled = name.isNotBlank(),
                 onClick = { onConfirm(name.trim(), type, colorHex) }
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun FieldEditDialogPreview() {
+    SaveableAppTheme {
+        FieldEditDialog(
+            title = "Edit field",
+            initialName = "Rating",
+            initialType = FieldType.RATING,
+            initialColorHex = AccentColors.palette.first(),
+            onDismiss = {},
+            onConfirm = { _, _, _ -> },
+            onDelete = {}
+        )
+    }
 }

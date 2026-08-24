@@ -14,8 +14,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import com.rainyday.saveableapp.ui.theme.AppAlpha
+import com.rainyday.saveableapp.ui.theme.Dimens
 import com.rainyday.saveableapp.ui.theme.PillShape
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
 /** A row of mutually-exclusive pill options (e.g. priority, sync frequency). Selected = tinted
  *  background + colored border + colored text; unselected = subtle surface + muted text. */
@@ -24,19 +27,19 @@ fun <T> SegmentedPillRow(
     options: List<T>,
     selected: T,
     onSelect: (T) -> Unit,
-    label: (T) -> String,
+    label: @Composable (T) -> String,
     modifier: Modifier = Modifier,
     accentColor: @Composable (T) -> Color = { MaterialTheme.colorScheme.primary }
 ) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(Dimens.d8)) {
         options.forEach { option ->
             val isSelected = option == selected
             val accent = accentColor(option)
             var chipModifier = Modifier
                 .clip(PillShape)
-                .background(if (isSelected) accent.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant)
+                .background(if (isSelected) accent.copy(alpha = AppAlpha.a14) else MaterialTheme.colorScheme.surfaceVariant)
             if (isSelected) {
-                chipModifier = chipModifier.border(BorderStroke(1.dp, accent), PillShape)
+                chipModifier = chipModifier.border(BorderStroke(Dimens.d1, accent), PillShape)
             }
             Text(
                 text = label(option),
@@ -45,8 +48,21 @@ fun <T> SegmentedPillRow(
                 modifier = chipModifier
                     .clickable { onSelect(option) }
                     .wrapContentWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .padding(horizontal = Dimens.d16, vertical = Dimens.d10)
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SegmentedPillRowPreview() {
+    SaveableAppTheme {
+        SegmentedPillRow(
+            options = listOf("Low", "Medium", "High", "Urgent"),
+            selected = "Medium",
+            onSelect = {},
+            label = { it }
+        )
     }
 }

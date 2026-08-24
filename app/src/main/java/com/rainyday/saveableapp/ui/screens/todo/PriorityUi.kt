@@ -1,5 +1,8 @@
 package com.rainyday.saveableapp.ui.screens.todo
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.local.Priority
 
 fun Priority.accentHex(): String = when (this) {
@@ -9,9 +12,12 @@ fun Priority.accentHex(): String = when (this) {
     Priority.URGENT -> "#F0465F"
 }
 
-fun Priority.label(): String = when (this) {
-    Priority.LOW -> "Low"
-    Priority.MEDIUM -> "Medium"
-    Priority.HIGH -> "High"
-    Priority.URGENT -> "Urgent"
-}
+@Composable
+fun Priority.label(): String = stringResource(
+    when (this) {
+        Priority.LOW -> R.string.priority_low
+        Priority.MEDIUM -> R.string.priority_medium
+        Priority.HIGH -> R.string.priority_high
+        Priority.URGENT -> R.string.priority_urgent
+    }
+)

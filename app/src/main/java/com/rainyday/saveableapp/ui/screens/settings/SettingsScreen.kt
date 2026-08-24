@@ -40,14 +40,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.common.api.ApiException
 import com.rainyday.saveableapp.BuildConfig
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.prefs.ThemeMode
 import com.rainyday.saveableapp.ui.components.PinSetupDialog
+import com.rainyday.saveableapp.ui.components.ScreenHeader
 import com.rainyday.saveableapp.ui.screens.todo.formatDate
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,12 +71,15 @@ fun SettingsScreen() {
     val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsState()
     val lastSyncAt by viewModel.lastSyncAt.collectAsState()
 
-    var showPinSetup by remember { mutableStateOf(false) }
     var driveAccount by remember { mutableStateOf(viewModel.driveBackupRepository.getSignedInAccount()) }
-    var driveBusy by remember { mutableStateOf(false) }
-    var showDriveRestoreConfirm by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    val signInFailedPattern = stringResource(R.string.settings_google_signin_failed)
+    val backupSavedMessage = stringResource(R.string.settings_backup_saved)
+    val exportFailedMessage = stringResource(R.string.settings_export_failed)
+    val backupRestoredMessage = stringResource(R.string.settings_backup_restored)
+    val importFailedMessage = stringResource(R.string.settings_import_failed)
 
     val driveSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -82,7 +91,7 @@ fun SettingsScreen() {
         if (account == null) {
             val statusCode = (signInResult.exceptionOrNull() as? ApiException)?.statusCode
             scope.launch {
-                snackbarHostState.showSnackbar("Google sign-in failed (code $statusCode)")
+                snackbarHostState.showSnackbar(signInFailedPattern.format(statusCode.toString()))
             }
         } else {
             // Also links this sign-in to Firebase Auth so it can authenticate AI-parsing calls.
@@ -96,9 +105,7 @@ fun SettingsScreen() {
         if (uri != null) {
             viewModel.exportData(context, uri) { success ->
                 scope.launch {
-                    snackbarHostState.showSnackbar(
-                        if (success) "Backup saved" else "Export failed"
-                    )
+                    snackbarHostState.showSnackbar(if (success) backupSavedMessage else exportFailedMessage)
                 }
             }
         }
@@ -110,13 +117,80 @@ fun SettingsScreen() {
         if (uri != null) {
             viewModel.importData(context, uri) { success ->
                 scope.launch {
-                    snackbarHostState.showSnackbar(
-                        if (success) "Backup restored" else "Import failed — file may be invalid"
-                    )
+                    snackbarHostState.showSnackbar(if (success) backupRestoredMessage else importFailedMessage)
                 }
             }
         }
     }
+
+    SettingsScreenContent(
+        themeMode = themeMode,
+        dynamicColorEnabled = dynamicColorEnabled,
+        infoLockEnabled = infoLockEnabled,
+        appLockEnabled = appLockEnabled,
+        appPinIsSet = appPinIsSet,
+        driveLastBackupAt = driveLastBackupAt,
+        autoBackupEnabled = autoBackupEnabled,
+        lastSyncAt = lastSyncAt,
+        driveAccount = driveAccount,
+        snackbarHostState = snackbarHostState,
+        onSetThemeMode = viewModel::setThemeMode,
+        onSetDynamicColorEnabled = viewModel::setDynamicColorEnabled,
+        onSetAppLockEnabled = viewModel::setAppLockEnabled,
+        onSetInfoLockEnabled = viewModel::setInfoLockEnabled,
+        onSetAppPin = viewModel::setAppPin,
+        onClearAppPin = viewModel::clearAppPin,
+        onSetAutoBackupEnabled = viewModel::setAutoBackupEnabled,
+        onSignInWithGoogleRequested = {
+            driveSignInLauncher.launch(viewModel.driveBackupRepository.signInClient().signInIntent)
+        },
+        onSignOutOfDrive = {
+            viewModel.driveBackupRepository.signOut()
+            driveAccount = null
+            if (autoBackupEnabled) viewModel.setAutoBackupEnabled(false)
+        },
+        onBackupToDrive = viewModel::backupToDrive,
+        onRestoreFromDrive = viewModel::restoreFromDrive,
+        onExportRequested = { exportLauncher.launch("todo-backup.json") },
+        onImportRequested = { importLauncher.launch(arrayOf("application/json")) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsScreenContent(
+    themeMode: ThemeMode,
+    dynamicColorEnabled: Boolean,
+    infoLockEnabled: Boolean,
+    appLockEnabled: Boolean,
+    appPinIsSet: Boolean,
+    driveLastBackupAt: Long?,
+    autoBackupEnabled: Boolean,
+    lastSyncAt: Long?,
+    driveAccount: GoogleSignInAccount?,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onSetThemeMode: (ThemeMode) -> Unit = {},
+    onSetDynamicColorEnabled: (Boolean) -> Unit = {},
+    onSetAppLockEnabled: (Boolean) -> Unit = {},
+    onSetInfoLockEnabled: (Boolean) -> Unit = {},
+    onSetAppPin: (String) -> Unit = {},
+    onClearAppPin: () -> Unit = {},
+    onSetAutoBackupEnabled: (Boolean) -> Unit = {},
+    onSignInWithGoogleRequested: () -> Unit = {},
+    onSignOutOfDrive: () -> Unit = {},
+    onBackupToDrive: (GoogleSignInAccount, (Boolean, String?) -> Unit) -> Unit = { _, onDone -> onDone(false, null) },
+    onRestoreFromDrive: (GoogleSignInAccount, (Boolean, String?) -> Unit) -> Unit = { _, onDone -> onDone(false, null) },
+    onExportRequested: () -> Unit = {},
+    onImportRequested: () -> Unit = {}
+) {
+    var showPinSetup by remember { mutableStateOf(false) }
+    var driveBusy by remember { mutableStateOf(false) }
+    var showDriveRestoreConfirm by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val unknownError = stringResource(R.string.settings_unknown_error)
+    val backedUpSuccessMessage = stringResource(R.string.settings_backed_up_success)
+    val backupFailedPattern = stringResource(R.string.settings_backup_failed)
+    val restoreFailedPattern = stringResource(R.string.settings_restore_failed)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } }
@@ -126,221 +200,229 @@ fun SettingsScreen() {
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-            com.rainyday.saveableapp.ui.components.ScreenHeader(
-                eyebrow = "// SETTINGS",
-                title = "Settings",
-                subtitle = "Appearance, security, and backup"
+            ScreenHeader(
+                eyebrow = stringResource(R.string.settings_eyebrow),
+                title = stringResource(R.string.settings_screen_title),
+                subtitle = stringResource(R.string.settings_screen_subtitle)
             )
-            SettingsSectionTitle("Appearance")
+            SettingsSectionTitle(stringResource(R.string.settings_section_appearance))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = Dimens.d16, vertical = Dimens.d8),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.d8)
             ) {
                 ThemeMode.entries.forEach { mode ->
                     FilterChip(
                         selected = themeMode == mode,
-                        onClick = { viewModel.setThemeMode(mode) },
+                        onClick = { onSetThemeMode(mode) },
                         label = { Text(mode.label()) }
                     )
                 }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 ListItem(
-                    headlineContent = { Text("Match wallpaper colors") },
-                    supportingContent = { Text("Use Material You dynamic color") },
+                    headlineContent = { Text(stringResource(R.string.settings_dynamic_color_title)) },
+                    supportingContent = { Text(stringResource(R.string.settings_dynamic_color_subtitle)) },
                     trailingContent = {
-                        Switch(checked = dynamicColorEnabled, onCheckedChange = viewModel::setDynamicColorEnabled)
+                        Switch(checked = dynamicColorEnabled, onCheckedChange = onSetDynamicColorEnabled)
                     }
                 )
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = Dimens.d8))
 
-            SettingsSectionTitle("Security")
+            SettingsSectionTitle(stringResource(R.string.settings_section_security))
             ListItem(
-                headlineContent = { Text("Lock app on launch") },
-                supportingContent = { Text("Require biometrics or a PIN to open the app") },
+                headlineContent = { Text(stringResource(R.string.settings_app_lock_title)) },
+                supportingContent = { Text(stringResource(R.string.settings_app_lock_subtitle)) },
                 trailingContent = {
-                    Switch(checked = appLockEnabled, onCheckedChange = viewModel::setAppLockEnabled)
+                    Switch(checked = appLockEnabled, onCheckedChange = onSetAppLockEnabled)
                 }
             )
             ListItem(
-                headlineContent = { Text("Lock Info section") },
-                supportingContent = { Text("Require biometrics or a PIN to open Info") },
+                headlineContent = { Text(stringResource(R.string.settings_info_lock_title)) },
+                supportingContent = { Text(stringResource(R.string.settings_info_lock_subtitle)) },
                 trailingContent = {
-                    Switch(checked = infoLockEnabled, onCheckedChange = viewModel::setInfoLockEnabled)
+                    Switch(checked = infoLockEnabled, onCheckedChange = onSetInfoLockEnabled)
                 }
             )
             ListItem(
-                headlineContent = { Text(if (appPinIsSet) "Change app PIN" else "Set app PIN") },
-                supportingContent = { Text("Numeric PIN used as a fallback for the locks above") },
+                headlineContent = {
+                    Text(
+                        if (appPinIsSet) {
+                            stringResource(R.string.settings_change_pin)
+                        } else {
+                            stringResource(R.string.settings_set_pin)
+                        }
+                    )
+                },
+                supportingContent = { Text(stringResource(R.string.settings_pin_subtitle)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { showPinSetup = true }
             )
             if (appPinIsSet) {
                 ListItem(
-                    headlineContent = { Text("Remove app PIN", color = MaterialTheme.colorScheme.error) },
+                    headlineContent = {
+                        Text(stringResource(R.string.settings_remove_pin), color = MaterialTheme.colorScheme.error)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { viewModel.clearAppPin() }
+                        .clickable { onClearAppPin() }
                 )
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = Dimens.d8))
 
-            SettingsSectionTitle("AI Task Parsing")
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            SettingsSectionTitle(stringResource(R.string.settings_section_ai_parsing))
+            Column(modifier = Modifier.padding(horizontal = Dimens.d16)) {
                 Text(
                     text = if (driveAccount != null) {
-                        "Quick-add text is parsed automatically (priority, due date, list, and tags) " +
-                            "using the same Google sign-in as Drive backup below. Free accounts get " +
-                            "20 AI parses a day."
+                        stringResource(R.string.settings_ai_parsing_connected)
                     } else {
-                        "Sign in with Google below (under Backup) to let quick-add parse your task text " +
-                            "automatically — priority, due date, list, and tags. Free accounts get 20 AI " +
-                            "parses a day."
+                        stringResource(R.string.settings_ai_parsing_disconnected)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = Dimens.d8))
 
-            SettingsSectionTitle("Sync")
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            SettingsSectionTitle(stringResource(R.string.settings_section_sync))
+            Column(modifier = Modifier.padding(horizontal = Dimens.d16)) {
                 if (driveAccount != null) {
                     Text(
-                        text = "Your lists, tasks, flashcards, and info are kept in sync across devices signed in to ${driveAccount?.email}.",
+                        text = stringResource(R.string.settings_sync_connected, driveAccount.email ?: ""),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = lastSyncAt?.let { "Last synced ${formatDate(it)}" } ?: "Not synced yet",
+                        text = lastSyncAt?.let { stringResource(R.string.settings_last_synced, formatDate(it)) }
+                            ?: stringResource(R.string.settings_not_synced),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = Dimens.d4)
                     )
                 } else {
                     Text(
-                        text = "Sign in with Google below (under Backup) to sync your data across devices.",
+                        text = stringResource(R.string.settings_sync_disconnected),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = Dimens.d8))
 
-            SettingsSectionTitle("Backup")
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text(text = "Google Drive", style = MaterialTheme.typography.titleSmall)
+            SettingsSectionTitle(stringResource(R.string.settings_section_backup))
+            Column(modifier = Modifier.padding(horizontal = Dimens.d16)) {
+                Text(text = stringResource(R.string.settings_backup_drive_title), style = MaterialTheme.typography.titleSmall)
                 val account = driveAccount
                 if (account == null) {
                     Text(
-                        text = "Sign in to back up your data to Google Drive and restore it on another device.",
+                        text = stringResource(R.string.settings_drive_signin_prompt),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = Dimens.d4)
                     )
                     OutlinedButton(
-                        onClick = { driveSignInLauncher.launch(viewModel.driveBackupRepository.signInClient().signInIntent) },
-                        modifier = Modifier.padding(top = 8.dp)
+                        onClick = onSignInWithGoogleRequested,
+                        modifier = Modifier.padding(top = Dimens.d8)
                     ) {
-                        Text("Sign in with Google")
+                        Text(stringResource(R.string.settings_sign_in_with_google))
                     }
                 } else {
                     Text(
-                        text = "Signed in as ${account.email}",
+                        text = stringResource(R.string.settings_signed_in_as, account.email ?: ""),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = Dimens.d4)
                     )
                     Text(
-                        text = driveLastBackupAt?.let { "Last backed up ${formatDate(it)}" } ?: "Never backed up",
+                        text = driveLastBackupAt?.let { stringResource(R.string.settings_last_backed_up, formatDate(it)) }
+                            ?: stringResource(R.string.settings_never_backed_up),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp),
+                            .padding(top = Dimens.d8),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Automatic daily backup",
+                            text = stringResource(R.string.settings_auto_backup_title),
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f)
                         )
-                        Switch(checked = autoBackupEnabled, onCheckedChange = viewModel::setAutoBackupEnabled)
+                        Switch(checked = autoBackupEnabled, onCheckedChange = onSetAutoBackupEnabled)
                     }
                     Row(
-                        modifier = Modifier.padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        modifier = Modifier.padding(top = Dimens.d8),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.d12)
                     ) {
                         OutlinedButton(
                             enabled = !driveBusy,
                             onClick = {
                                 driveBusy = true
-                                viewModel.backupToDrive(account) { success, error ->
+                                onBackupToDrive(account) { success, error ->
                                     driveBusy = false
                                     scope.launch {
                                         snackbarHostState.showSnackbar(
-                                            if (success) "Backed up to Drive" else "Backup failed: ${error ?: "unknown error"}"
+                                            if (success) {
+                                                backedUpSuccessMessage
+                                            } else {
+                                                backupFailedPattern.format(error ?: unknownError)
+                                            }
                                         )
                                     }
                                 }
                             }
-                        ) { Text("Back up now") }
+                        ) { Text(stringResource(R.string.settings_backup_now)) }
                         OutlinedButton(
                             enabled = !driveBusy,
                             onClick = { showDriveRestoreConfirm = true }
-                        ) { Text("Restore") }
+                        ) { Text(stringResource(R.string.action_restore)) }
                     }
                     TextButton(
-                        onClick = {
-                            viewModel.driveBackupRepository.signOut()
-                            driveAccount = null
-                            if (autoBackupEnabled) viewModel.setAutoBackupEnabled(false)
-                        },
-                        modifier = Modifier.padding(top = 4.dp)
-                    ) { Text("Sign out") }
+                        onClick = onSignOutOfDrive,
+                        modifier = Modifier.padding(top = Dimens.d4)
+                    ) { Text(stringResource(R.string.settings_sign_out)) }
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = Dimens.d8, horizontal = Dimens.d16))
 
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text(text = "Local file", style = MaterialTheme.typography.titleSmall)
+            Column(modifier = Modifier.padding(horizontal = Dimens.d16)) {
+                Text(text = stringResource(R.string.settings_local_file_title), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    text = "Export a backup file to keep a copy or move to another phone.",
+                    text = stringResource(R.string.settings_export_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = Dimens.d4)
                 )
                 Row(
-                    modifier = Modifier.padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.padding(top = Dimens.d8),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.d12)
                 ) {
-                    OutlinedButton(onClick = { exportLauncher.launch("todo-backup.json") }) {
-                        Icon(Icons.Filled.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text(" Export", modifier = Modifier.padding(start = 4.dp))
+                    OutlinedButton(onClick = onExportRequested) {
+                        Icon(Icons.Filled.FileDownload, contentDescription = null, modifier = Modifier.size(Dimens.d18))
+                        Text(stringResource(R.string.settings_export_action), modifier = Modifier.padding(start = Dimens.d4))
                     }
-                    OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json")) }) {
-                        Icon(Icons.Filled.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text(" Import", modifier = Modifier.padding(start = 4.dp))
+                    OutlinedButton(onClick = onImportRequested) {
+                        Icon(Icons.Filled.FileUpload, contentDescription = null, modifier = Modifier.size(Dimens.d18))
+                        Text(stringResource(R.string.settings_import_action), modifier = Modifier.padding(start = Dimens.d4))
                     }
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = Dimens.d8))
 
-            SettingsSectionTitle("About")
+            SettingsSectionTitle(stringResource(R.string.settings_section_about))
             ListItem(
-                headlineContent = { Text("Version") },
+                headlineContent = { Text(stringResource(R.string.settings_version_label)) },
                 supportingContent = { Text(BuildConfig.VERSION_NAME) }
             )
         }
@@ -350,34 +432,39 @@ fun SettingsScreen() {
         PinSetupDialog(
             onDismiss = { showPinSetup = false },
             onConfirm = { pin ->
-                viewModel.setAppPin(pin)
+                onSetAppPin(pin)
                 showPinSetup = false
             }
         )
     }
 
     if (showDriveRestoreConfirm) {
+        val restoredSuccessMessage = stringResource(R.string.settings_restored_success)
         AlertDialog(
             onDismissRequest = { showDriveRestoreConfirm = false },
-            title = { Text("Restore from Drive?") },
-            text = { Text("This replaces everything on this device with your Google Drive backup. This can't be undone.") },
+            title = { Text(stringResource(R.string.settings_drive_restore_title)) },
+            text = { Text(stringResource(R.string.settings_drive_restore_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDriveRestoreConfirm = false
                     val account = driveAccount ?: return@TextButton
                     driveBusy = true
-                    viewModel.restoreFromDrive(account) { success, error ->
+                    onRestoreFromDrive(account) { success, error ->
                         driveBusy = false
                         scope.launch {
                             snackbarHostState.showSnackbar(
-                                if (success) "Restored from Drive" else "Restore failed: ${error ?: "unknown error"}"
+                                if (success) {
+                                    restoredSuccessMessage
+                                } else {
+                                    restoreFailedPattern.format(error ?: unknownError)
+                                }
                             )
                         }
                     }
-                }) { Text("Restore") }
+                }) { Text(stringResource(R.string.action_restore)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDriveRestoreConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showDriveRestoreConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }
@@ -389,12 +476,33 @@ private fun SettingsSectionTitle(text: String) {
         text = text,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)
+        modifier = Modifier.padding(start = Dimens.d16, top = Dimens.d16, bottom = Dimens.d4)
     )
 }
 
-private fun ThemeMode.label(): String = when (this) {
-    ThemeMode.SYSTEM -> "System"
-    ThemeMode.LIGHT -> "Light"
-    ThemeMode.DARK -> "Dark"
+@Composable
+private fun ThemeMode.label(): String = stringResource(
+    when (this) {
+        ThemeMode.SYSTEM -> R.string.theme_mode_system
+        ThemeMode.LIGHT -> R.string.theme_mode_light
+        ThemeMode.DARK -> R.string.theme_mode_dark
+    }
+)
+
+@Preview(showBackground = true)
+@Composable
+private fun SettingsScreenPreview() {
+    SaveableAppTheme {
+        SettingsScreenContent(
+            themeMode = ThemeMode.SYSTEM,
+            dynamicColorEnabled = true,
+            infoLockEnabled = true,
+            appLockEnabled = false,
+            appPinIsSet = false,
+            driveLastBackupAt = null,
+            autoBackupEnabled = false,
+            lastSyncAt = null,
+            driveAccount = null
+        )
+    }
 }

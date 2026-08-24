@@ -30,8 +30,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
 import com.rainyday.saveableapp.data.local.FieldType
 import com.rainyday.saveableapp.ui.components.LinkPreviewCard
@@ -39,6 +41,8 @@ import com.rainyday.saveableapp.ui.components.StarRatingInput
 import com.rainyday.saveableapp.ui.components.normalizeUrl
 import com.rainyday.saveableapp.ui.components.parseHexColor
 import com.rainyday.saveableapp.ui.screens.todo.formatDate
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +53,7 @@ fun ItemEditDialog(
     initialUrl: String = "",
     fields: List<FieldDefinitionEntity> = emptyList(),
     initialFieldValues: Map<String, String> = emptyMap(),
-    textLabel: String = "Title",
+    textLabel: String = stringResource(R.string.lists_item_title_label),
     onDismiss: () -> Unit,
     onConfirm: (text: String, note: String?, url: String?, fieldValues: Map<String, String>) -> Unit,
     onDelete: (() -> Unit)? = null
@@ -84,38 +88,38 @@ fun ItemEditDialog(
                 OutlinedTextField(
                     value = link,
                     onValueChange = { link = it },
-                    label = { Text("Link (optional)") },
-                    placeholder = { Text("example.com") },
+                    label = { Text(stringResource(R.string.lists_link_label)) },
+                    placeholder = { Text(stringResource(R.string.lists_link_placeholder)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp)
+                        .padding(top = Dimens.d12)
                 )
                 normalizeUrl(link)?.let { normalized ->
                     LinkPreviewCard(
                         url = normalized,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp)
+                            .padding(top = Dimens.d8)
                     )
                 }
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },
-                    label = { Text("Note (optional)") },
+                    label = { Text(stringResource(R.string.lists_note_label)) },
                     minLines = 2,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp)
+                        .padding(top = Dimens.d12)
                 )
                 if (onDelete != null) {
                     TextButton(
                         onClick = onDelete,
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(top = Dimens.d8)
                     ) {
-                        Text("Delete")
+                        Text(stringResource(R.string.action_delete))
                     }
                 }
             }
@@ -126,10 +130,10 @@ fun ItemEditDialog(
                 onClick = {
                     onConfirm(text.trim(), note.trim().ifBlank { null }, normalizeUrl(link), fieldValues.toMap())
                 }
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 
@@ -141,10 +145,10 @@ fun ItemEditDialog(
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { fieldValues[fieldId] = it.toString() }
                     datePickerFieldId = null
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { datePickerFieldId = null }) { Text("Cancel") }
+                TextButton(onClick = { datePickerFieldId = null }) { Text(stringResource(R.string.action_cancel)) }
             }
         ) {
             DatePicker(state = state)
@@ -168,7 +172,7 @@ internal fun FieldInput(
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 12.dp)
+                .padding(top = Dimens.d12)
         )
         FieldType.NUMBER -> OutlinedTextField(
             value = value ?: "",
@@ -180,9 +184,9 @@ internal fun FieldInput(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 12.dp)
+                .padding(top = Dimens.d12)
         )
-        FieldType.RATING -> Column(modifier = Modifier.padding(top = 12.dp)) {
+        FieldType.RATING -> Column(modifier = Modifier.padding(top = Dimens.d12)) {
             Text(
                 text = field.name,
                 style = MaterialTheme.typography.bodySmall,
@@ -194,25 +198,46 @@ internal fun FieldInput(
                 color = parseHexColor(field.colorHex)
             )
         }
-        FieldType.DATE -> Column(modifier = Modifier.padding(top = 12.dp)) {
+        FieldType.DATE -> Column(modifier = Modifier.padding(top = Dimens.d12)) {
             Text(
                 text = field.name,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp)
+                modifier = Modifier.padding(bottom = Dimens.d4)
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val dateMillis = value?.toLongOrNull()
                 AssistChip(
                     onClick = onOpenDatePicker,
-                    label = { Text(dateMillis?.let { formatDate(it) } ?: "Set date") }
+                    label = { Text(dateMillis?.let { formatDate(it) } ?: stringResource(R.string.lists_set_date)) }
                 )
                 if (dateMillis != null) {
                     IconButton(onClick = onClear) {
-                        Icon(Icons.Filled.Close, contentDescription = "Clear ${field.name}")
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_clear_field, field.name))
                     }
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ItemEditDialogPreview() {
+    SaveableAppTheme {
+        ItemEditDialog(
+            title = "Edit item",
+            initialText = "Dune",
+            initialNote = "Recommended by Alex",
+            initialUrl = "https://example.com/dune",
+            fields = listOf(
+                FieldDefinitionEntity(id = "field-1", listId = "list-1", name = "Author", type = FieldType.TEXT, colorHex = "#43A047", createdAt = 0L, updatedAt = 0L),
+                FieldDefinitionEntity(id = "field-2", listId = "list-1", name = "Rating", type = FieldType.RATING, colorHex = "#FB8C00", createdAt = 0L, updatedAt = 0L)
+            ),
+            initialFieldValues = mapOf("field-1" to "Frank Herbert", "field-2" to "4"),
+            onDismiss = {},
+            onConfirm = { _, _, _, _ -> },
+            onDelete = {}
+        )
     }
 }

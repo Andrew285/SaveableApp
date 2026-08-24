@@ -1,5 +1,6 @@
 package com.rainyday.saveableapp.ui.screens.flashcards
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,10 +23,12 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,13 +38,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rainyday.saveableapp.R
+import com.rainyday.saveableapp.data.local.FlashCardDeckEntity
+import com.rainyday.saveableapp.data.local.FlashCardEntity
 import com.rainyday.saveableapp.data.repository.CardRating
 import com.rainyday.saveableapp.ui.components.LoadingIndicator
+import com.rainyday.saveableapp.ui.theme.AppAlpha
+import com.rainyday.saveableapp.ui.theme.Dimens
 import com.rainyday.saveableapp.ui.theme.EyebrowTextStyle
 import com.rainyday.saveableapp.ui.theme.PillShape
+import com.rainyday.saveableapp.ui.theme.PriorityColors
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
 @Composable
 fun FlashCardStudyScreen(deckId: String, onBack: () -> Unit) {
@@ -49,6 +60,26 @@ fun FlashCardStudyScreen(deckId: String, onBack: () -> Unit) {
     val deck by viewModel.deck.collectAsState()
     val queue by viewModel.queue.collectAsState()
     val index by viewModel.index.collectAsState()
+
+    FlashCardStudyScreenContent(
+        onBack = onBack,
+        deck = deck,
+        queue = queue,
+        index = index,
+        onStudyAllCards = viewModel::studyAllCards,
+        onRate = viewModel::rate
+    )
+}
+
+@Composable
+private fun FlashCardStudyScreenContent(
+    onBack: () -> Unit,
+    deck: FlashCardDeckEntity?,
+    queue: List<FlashCardEntity>?,
+    index: Int,
+    onStudyAllCards: () -> Unit = {},
+    onRate: (FlashCardEntity, CardRating) -> Unit = { _, _ -> }
+) {
     var revealed by remember { mutableStateOf(false) }
 
     val currentQueue = queue
@@ -61,7 +92,7 @@ fun FlashCardStudyScreen(deckId: String, onBack: () -> Unit) {
                 studiedAnyCards = currentQueue.isNotEmpty(),
                 onStudyAll = {
                     revealed = false
-                    viewModel.studyAllCards()
+                    onStudyAllCards()
                 },
                 onDone = onBack,
                 modifier = Modifier.padding(padding)
@@ -70,12 +101,12 @@ fun FlashCardStudyScreen(deckId: String, onBack: () -> Unit) {
                 modifier = Modifier
                     .padding(padding)
                     .fillMaxSize()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = Dimens.d20)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = Dimens.d12),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
@@ -84,19 +115,19 @@ fun FlashCardStudyScreen(deckId: String, onBack: () -> Unit) {
                     ) {
                         Icon(
                             Icons.Filled.Close,
-                            contentDescription = "Exit study",
+                            contentDescription = stringResource(R.string.flashcards_exit_study_cd),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(Dimens.d18)
                         )
                         Text(
-                            text = "Exit Study",
+                            text = stringResource(R.string.flashcards_exit_study_label),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 6.dp)
+                            modifier = Modifier.padding(start = Dimens.d6)
                         )
                     }
                     Text(
-                        text = "$index / ${currentQueue.size} reviewed",
+                        text = stringResource(R.string.flashcards_reviewed_progress, index, currentQueue.size),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f),
@@ -116,7 +147,7 @@ fun FlashCardStudyScreen(deckId: String, onBack: () -> Unit) {
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .padding(vertical = 16.dp),
+                        .padding(vertical = Dimens.d16),
                     contentAlignment = Alignment.Center
                 ) {
                     StudyCard(
@@ -130,46 +161,46 @@ fun FlashCardStudyScreen(deckId: String, onBack: () -> Unit) {
 
                 if (revealed) {
                     Text(
-                        text = "RATE RETRIEVAL DIFFICULTY:",
+                        text = stringResource(R.string.flashcards_rate_difficulty),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 10.dp),
+                            .padding(bottom = Dimens.d10),
                         textAlign = TextAlign.Center
                     )
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.d8),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 24.dp)
+                            .padding(bottom = Dimens.d24)
                     ) {
                         RatingButton(
-                            label = "Again",
-                            intervalLabel = "<1m",
-                            accent = MaterialTheme.colorScheme.error,
-                            onClick = { viewModel.rate(currentCard, CardRating.AGAIN); revealed = false },
+                            label = stringResource(R.string.flashcards_rating_again),
+                            intervalLabel = stringResource(R.string.flashcards_interval_again),
+                            palette = RatingButtonPaletteDefaults.again(),
+                            onClick = { onRate(currentCard, CardRating.AGAIN); revealed = false },
                             modifier = Modifier.weight(1f)
                         )
                         RatingButton(
-                            label = "Hard",
-                            intervalLabel = "12h",
-                            accent = com.rainyday.saveableapp.ui.theme.PriorityColors.high,
-                            onClick = { viewModel.rate(currentCard, CardRating.HARD); revealed = false },
+                            label = stringResource(R.string.flashcards_rating_hard),
+                            intervalLabel = stringResource(R.string.flashcards_interval_hard),
+                            palette = RatingButtonPaletteDefaults.hard(),
+                            onClick = { onRate(currentCard, CardRating.HARD); revealed = false },
                             modifier = Modifier.weight(1f)
                         )
                         RatingButton(
-                            label = "Good",
-                            intervalLabel = "4d",
-                            accent = MaterialTheme.colorScheme.primary,
-                            onClick = { viewModel.rate(currentCard, CardRating.GOOD); revealed = false },
+                            label = stringResource(R.string.flashcards_rating_good),
+                            intervalLabel = stringResource(R.string.flashcards_interval_good),
+                            palette = RatingButtonPaletteDefaults.good(),
+                            onClick = { onRate(currentCard, CardRating.GOOD); revealed = false },
                             modifier = Modifier.weight(1f)
                         )
                         RatingButton(
-                            label = "Easy",
-                            intervalLabel = "8d",
-                            accent = com.rainyday.saveableapp.ui.theme.PriorityColors.medium,
-                            onClick = { viewModel.rate(currentCard, CardRating.EASY); revealed = false },
+                            label = stringResource(R.string.flashcards_rating_easy),
+                            intervalLabel = stringResource(R.string.flashcards_interval_easy),
+                            palette = RatingButtonPaletteDefaults.easy(),
+                            onClick = { onRate(currentCard, CardRating.EASY); revealed = false },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -177,12 +208,12 @@ fun FlashCardStudyScreen(deckId: String, onBack: () -> Unit) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 24.dp),
+                            .padding(bottom = Dimens.d24),
                         horizontalArrangement = Arrangement.Center
                     ) {
                         TextButton(onClick = { revealed = true }) {
-                            Icon(Icons.Filled.VisibilityOff, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Text(" Tap to flip hint", modifier = Modifier.padding(start = 4.dp))
+                            Icon(Icons.Filled.VisibilityOff, contentDescription = null, modifier = Modifier.size(Dimens.d16))
+                            Text(stringResource(R.string.flashcards_tap_to_flip_hint), modifier = Modifier.padding(start = Dimens.d4))
                         }
                     }
                 }
@@ -191,20 +222,38 @@ fun FlashCardStudyScreen(deckId: String, onBack: () -> Unit) {
     }
 }
 
+/** Color for a single spaced-repetition rating pill — see [RatingButtonPaletteDefaults]. */
+@Immutable
+data class RatingButtonPalette(val accentColor: Color)
+
+object RatingButtonPaletteDefaults {
+    @Composable
+    fun again(): RatingButtonPalette = RatingButtonPalette(MaterialTheme.colorScheme.error)
+
+    @Composable
+    fun hard(): RatingButtonPalette = RatingButtonPalette(PriorityColors.high)
+
+    @Composable
+    fun good(): RatingButtonPalette = RatingButtonPalette(MaterialTheme.colorScheme.primary)
+
+    @Composable
+    fun easy(): RatingButtonPalette = RatingButtonPalette(PriorityColors.medium)
+}
+
 @Composable
 private fun RatingButton(
     label: String,
     intervalLabel: String,
-    accent: Color,
+    palette: RatingButtonPalette,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    androidx.compose.material3.OutlinedButton(
+    OutlinedButton(
         onClick = onClick,
         shape = PillShape,
-        border = androidx.compose.foundation.BorderStroke(1.dp, accent),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = accent),
-        contentPadding = PaddingValues(vertical = 10.dp),
+        border = BorderStroke(Dimens.d1, palette.accentColor),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = palette.accentColor),
+        contentPadding = PaddingValues(vertical = Dimens.d10),
         modifier = modifier
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -223,16 +272,16 @@ private fun StudyCard(eyebrow: String, front: String, back: String, revealed: Bo
             .clip(MaterialTheme.shapes.large)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick)
-            .padding(24.dp),
+            .padding(Dimens.d24),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (eyebrow.isNotBlank()) {
                 Text(
-                    text = "// ${eyebrow.uppercase()}",
+                    text = stringResource(R.string.flashcards_study_card_eyebrow, eyebrow.uppercase()),
                     style = EyebrowTextStyle,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 20.dp)
+                    modifier = Modifier.padding(bottom = Dimens.d20)
                 )
             }
             Text(
@@ -255,37 +304,74 @@ private fun StudyCompleteState(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(Dimens.d32),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
             Icons.Filled.CheckCircle,
             contentDescription = null,
-            modifier = Modifier.size(56.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-        )
-        Text(
-            text = if (studiedAnyCards) "All caught up!" else "Nothing due right now",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 16.dp)
+            modifier = Modifier.size(Dimens.d56),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = AppAlpha.a60)
         )
         Text(
             text = if (studiedAnyCards) {
-                "You've reviewed every card that was due. Nice work."
+                stringResource(R.string.flashcards_study_complete_title)
             } else {
-                "No cards in this deck are due for review yet."
+                stringResource(R.string.flashcards_study_nothing_due_title)
+            },
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = Dimens.d16)
+        )
+        Text(
+            text = if (studiedAnyCards) {
+                stringResource(R.string.flashcards_study_complete_subtitle)
+            } else {
+                stringResource(R.string.flashcards_study_nothing_due_subtitle)
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 4.dp)
+            modifier = Modifier.padding(top = Dimens.d4)
         )
-        Button(onClick = onDone, modifier = Modifier.padding(top = 20.dp)) {
-            Text("Done")
+        Button(onClick = onDone, modifier = Modifier.padding(top = Dimens.d20)) {
+            Text(stringResource(R.string.action_done))
         }
-        TextButton(onClick = onStudyAll, modifier = Modifier.padding(top = 4.dp)) {
-            Text("Study all cards anyway")
+        TextButton(onClick = onStudyAll, modifier = Modifier.padding(top = Dimens.d4)) {
+            Text(stringResource(R.string.flashcards_study_all_anyway))
         }
+    }
+}
+
+private val previewStudyDeck = FlashCardDeckEntity(id = "deck-1", name = "Spanish Vocabulary", icon = "language", colorHex = "#6750A4", createdAt = 0L, updatedAt = 0L)
+
+private val previewStudyQueue = listOf(
+    FlashCardEntity(id = "card-1", deckId = "deck-1", front = "Casa", back = "House", createdAt = 0L, updatedAt = 0L),
+    FlashCardEntity(id = "card-2", deckId = "deck-1", front = "Perro", back = "Dog", createdAt = 0L, updatedAt = 0L)
+)
+
+@Preview(showBackground = true)
+@Composable
+fun FlashCardStudyScreenPreview() {
+    SaveableAppTheme {
+        FlashCardStudyScreenContent(
+            onBack = {},
+            deck = previewStudyDeck,
+            queue = previewStudyQueue,
+            index = 0
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun FlashCardStudyScreenCompletePreview() {
+    SaveableAppTheme {
+        FlashCardStudyScreenContent(
+            onBack = {},
+            deck = previewStudyDeck,
+            queue = previewStudyQueue,
+            index = previewStudyQueue.size
+        )
     }
 }

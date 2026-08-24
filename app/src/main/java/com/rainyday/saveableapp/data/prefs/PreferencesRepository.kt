@@ -36,7 +36,7 @@ class PreferencesRepository(private val context: Context) {
     }
 
     val dynamicColorEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[Keys.DYNAMIC_COLOR] ?: true
+        prefs[Keys.DYNAMIC_COLOR] ?: false
     }
 
     val infoLockEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->

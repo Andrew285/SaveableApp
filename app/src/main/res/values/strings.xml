@@ -1,3 +1,353 @@
 <resources>
+    <!--
+      Naming convention:
+        - Shared/generic strings (reused across multiple screens: actions, common content
+          descriptions, filter/sort labels, etc.) get short, unprefixed names, e.g. "action_create",
+          "cd_restore", "filter_all".
+        - Screen- or component-specific copy is prefixed with its owner, e.g. "tasks_screen_title",
+          "settings_backup_section_title".
+        - Format args use positional placeholders (%1$s, %1$d) so word order can change per string
+          without renumbering call sites.
+    -->
     <string name="app_name">SaveableApp</string>
+
+    <!-- Shared actions -->
+    <string name="action_create">Create</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_ok">OK</string>
+    <string name="action_undo">Undo</string>
+    <string name="action_new_list">New list</string>
+    <string name="action_edit_list">Edit list</string>
+
+    <!-- Shared content descriptions -->
+    <string name="cd_sort">Sort</string>
+    <string name="cd_more">More</string>
+    <string name="cd_restore">Restore</string>
+    <string name="cd_delete_permanently">Delete permanently</string>
+    <string name="cd_cancel_selection">Cancel selection</string>
+    <string name="cd_mark_done">Mark done</string>
+    <string name="cd_move_to_list">Move to list</string>
+    <string name="cd_delete_selected">Delete selected</string>
+    <string name="cd_add_task">Add task</string>
+
+    <!-- Shared filter / sort labels -->
+    <string name="filter_all">All</string>
+    <string name="filter_active">Active</string>
+    <string name="filter_completed">Completed</string>
+    <string name="sort_default">Default</string>
+    <string name="sort_priority">Priority</string>
+    <string name="sort_due_date">Due date</string>
+    <string name="sort_alphabetical">Alphabetical</string>
+
+    <!-- Shared feedback messages -->
+    <string name="deleted_named_item">Deleted \"%1$s\"</string>
+    <string name="selection_count">%1$d selected</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_tasks">Tasks</string>
+    <string name="nav_lists">Lists</string>
+    <string name="nav_cards">Cards</string>
+    <string name="nav_vault">Vault</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Priority -->
+    <string name="priority_low">Low</string>
+    <string name="priority_medium">Medium</string>
+    <string name="priority_high">High</string>
+    <string name="priority_urgent">Urgent</string>
+
+    <!-- Recurrence -->
+    <string name="recurrence_none">None</string>
+    <string name="recurrence_daily">Daily</string>
+    <string name="recurrence_weekly">Weekly</string>
+    <string name="recurrence_monthly">Monthly</string>
+    <string name="recurrence_yearly">Yearly</string>
+
+    <!-- Task edit sheet -->
+    <string name="task_edit_title_label">Title</string>
+    <string name="task_edit_notes_label">Notes</string>
+    <string name="task_edit_destination_list_eyebrow">// DESTINATION LIST</string>
+    <string name="task_edit_choose_list">Choose list</string>
+    <string name="task_edit_priority_eyebrow">// PRIORITY LEVEL</string>
+    <string name="task_edit_repeats_eyebrow">// REPEATS</string>
+    <string name="task_edit_deadline_eyebrow">// DEADLINE</string>
+    <string name="task_edit_set_date">Set date</string>
+    <string name="cd_clear_date">Clear date</string>
+    <string name="task_edit_highlight_color_eyebrow">// CARD HIGHLIGHT COLOR</string>
+    <string name="task_edit_auto_color">Auto</string>
+    <string name="task_edit_auto_color_selected">Auto ✓</string>
+    <string name="task_edit_tags_eyebrow">// TAGS</string>
+    <string name="task_edit_new_tag_label">New tag</string>
+    <string name="cd_add_tag">Add tag</string>
+    <string name="task_edit_delete_task">Delete Task</string>
+
+    <!-- Tasks screen -->
+    <string name="tasks_screen_eyebrow">// TASKS</string>
+    <string name="tasks_screen_title">Active Tasks</string>
+    <string name="tasks_screen_subtitle">Everything on your plate</string>
+    <string name="tasks_empty_lists_title">No lists yet</string>
+    <string name="tasks_empty_lists_subtitle">Create a list to start tracking tasks with priorities, tags, and colors.</string>
+    <string name="tasks_archive_completed">Archive completed</string>
+    <string name="tasks_view_archived">View archived (%1$d)</string>
+    <string name="tasks_deleted_count">Deleted %1$d tasks</string>
+    <string name="tasks_quick_add_placeholder">Type a task...</string>
+    <string name="tasks_quick_add_busy_placeholder">Reading your task...</string>
+    <string name="tasks_archived_title">Archived tasks</string>
+    <string name="tasks_archived_empty_title">Nothing archived</string>
+    <string name="tasks_archived_empty_subtitle">Completed tasks you archive will show up here.</string>
+
+    <!-- Lock gate -->
+    <string name="lock_gate_pin_label">PIN</string>
+    <string name="lock_gate_unlock">Unlock</string>
+    <string name="lock_gate_incorrect_pin">Incorrect PIN</string>
+    <string name="lock_gate_use_biometrics">Use biometrics instead</string>
+    <string name="lock_gate_use_pin">Use PIN instead</string>
+
+    <!-- Info / Vault -->
+    <string name="info_empty_categories_title">No categories yet</string>
+    <string name="info_empty_categories_subtitle">Keep sizes, IDs, and important details organized and available at a glance.</string>
+    <string name="info_new_category">New category</string>
+    <string name="info_vault_eyebrow">// VAULT</string>
+    <string name="info_vault_title">The Vault</string>
+    <string name="info_vault_subtitle">Locked away, always at hand</string>
+    <string name="info_new_category_cta">+ New Category</string>
+    <string name="info_edit_category">Edit category</string>
+    <string name="info_category_fallback_name">Info</string>
+    <string name="info_vault_label">Vault</string>
+    <string name="info_new_entry">New entry</string>
+    <string name="info_empty_blocks_title">Nothing saved here yet</string>
+    <string name="info_empty_blocks_subtitle">Add sizes, IDs, or any detail you want available at a glance.</string>
+    <string name="info_edit_entry">Edit entry</string>
+    <string name="info_locked_title">Locked</string>
+    <string name="info_locked_subtitle">Verify it\'s you to view this information.</string>
+    <string name="cd_hide">Hide</string>
+    <string name="cd_reveal">Reveal</string>
+    <string name="cd_copy">Copy</string>
+    <string name="cd_unfavorite">Unfavorite</string>
+    <string name="cd_favorite">Favorite</string>
+    <string name="info_expired_on">Expired %1$s</string>
+    <string name="info_expires_today">Expires today</string>
+    <string name="info_expires_on">Expires %1$s</string>
+    <plurals name="info_expiring_count">
+        <item quantity="one">1 entry expiring or expired</item>
+        <item quantity="other">%1$d entries expiring or expired</item>
+    </plurals>
+    <string name="info_start_from_template">Start from a template</string>
+    <string name="info_block_title_label">Title (e.g. Passport number)</string>
+    <string name="info_block_value_label">Value</string>
+    <string name="info_mask_value_label">Mask value until tapped</string>
+    <string name="info_expiry_date_label">Expiry date</string>
+    <string name="info_set_expiry_date">Set expiry date</string>
+    <string name="cd_clear_expiry_date">Clear expiry date</string>
+    <string name="info_template_passport_label">Passport</string>
+    <string name="info_template_passport_title">Passport number</string>
+    <string name="info_template_drivers_license_label">Driver\'s license</string>
+    <string name="info_template_drivers_license_title">Driver\'s license number</string>
+    <string name="info_template_id_card_label">ID card</string>
+    <string name="info_template_id_card_title">ID card number</string>
+    <string name="info_template_bank_card_label">Bank card</string>
+    <string name="info_template_bank_card_title">Bank card number</string>
+    <string name="info_template_wifi_password_label">Wi-Fi password</string>
+    <string name="info_template_membership_label">Membership</string>
+    <string name="info_template_membership_title">Membership number</string>
+
+    <!-- More shared actions / content descriptions -->
+    <string name="action_done">Done</string>
+    <string name="cd_reorder">Reorder</string>
+
+    <!-- Flashcards -->
+    <string name="flashcards_empty_decks_title">No decks yet</string>
+    <string name="flashcards_empty_decks_subtitle">Create a deck to start collecting flashcards for anything you want to memorize.</string>
+    <string name="flashcards_new_deck">New deck</string>
+    <string name="flashcards_screen_eyebrow">// CARDS</string>
+    <string name="flashcards_screen_title">Study Decks</string>
+    <string name="flashcards_screen_subtitle">Spaced-repetition memory</string>
+    <string name="flashcards_add_deck_button">+ New Deck</string>
+    <string name="flashcards_edit_deck">Edit deck</string>
+    <string name="flashcards_due_count">%1$d DUE</string>
+    <string name="flashcards_total_cards">TOTAL CARDS: %1$d</string>
+    <string name="flashcards_new_card">New card</string>
+    <string name="flashcards_study_this_deck_cd">Study this deck</string>
+    <string name="flashcards_deck_fallback_title">Deck</string>
+    <string name="flashcards_empty_cards_title">No cards yet</string>
+    <string name="flashcards_empty_cards_subtitle">Add a card with a front and back side, then tap it to flip and study.</string>
+    <string name="flashcards_edit_card">Edit card</string>
+    <string name="flashcards_deleted_card_message">Deleted card</string>
+    <string name="flashcards_exit_study_cd">Exit study</string>
+    <string name="flashcards_exit_study_label">Exit Study</string>
+    <string name="flashcards_reviewed_progress">%1$d / %2$d reviewed</string>
+    <string name="flashcards_rate_difficulty">RATE RETRIEVAL DIFFICULTY:</string>
+    <string name="flashcards_rating_again">Again</string>
+    <string name="flashcards_rating_hard">Hard</string>
+    <string name="flashcards_rating_good">Good</string>
+    <string name="flashcards_rating_easy">Easy</string>
+    <string name="flashcards_interval_again">&lt;1m</string>
+    <string name="flashcards_interval_hard">12h</string>
+    <string name="flashcards_interval_good">4d</string>
+    <string name="flashcards_interval_easy">8d</string>
+    <string name="flashcards_tap_to_flip_hint">Tap to flip hint</string>
+    <string name="flashcards_study_card_eyebrow">// %1$s</string>
+    <string name="flashcards_study_complete_title">All caught up!</string>
+    <string name="flashcards_study_nothing_due_title">Nothing due right now</string>
+    <string name="flashcards_study_complete_subtitle">You\'ve reviewed every card that was due. Nice work.</string>
+    <string name="flashcards_study_nothing_due_subtitle">No cards in this deck are due for review yet.</string>
+    <string name="flashcards_study_all_anyway">Study all cards anyway</string>
+    <string name="flashcards_card_front_label">Front</string>
+    <string name="flashcards_card_back_label">Back</string>
+
+    <!-- Components: DirectoryCard -->
+    <string name="directory_card_item_count_singular">1 item</string>
+    <string name="directory_card_item_count_plural">%1$d items</string>
+
+    <!-- Components: EditListDialog -->
+    <string name="edit_list_dialog_show_checkbox">Show checkbox on items</string>
+    <string name="edit_list_dialog_start_from_template">Start from a template</string>
+    <string name="edit_list_dialog_name_label">Name</string>
+    <string name="edit_list_dialog_color_label">Color</string>
+    <string name="edit_list_dialog_icon_label">Icon</string>
+
+    <!-- Shared (additions) -->
+    <string name="cd_back">Back</string>
+    <string name="action_restore">Restore</string>
+
+    <!-- Search -->
+    <string name="search_title">Search</string>
+    <string name="search_placeholder">Search tasks and list items</string>
+    <string name="search_no_results">No results for \"%1$s\"</string>
+    <string name="search_section_tasks">Tasks</string>
+    <string name="search_section_list_items">List items</string>
+
+    <!-- Theme mode -->
+    <string name="theme_mode_system">System</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_dark">Dark</string>
+
+    <!-- Settings -->
+    <string name="settings_google_signin_failed">Google sign-in failed (code %1$s)</string>
+    <string name="settings_backup_saved">Backup saved</string>
+    <string name="settings_export_failed">Export failed</string>
+    <string name="settings_backup_restored">Backup restored</string>
+    <string name="settings_import_failed">Import failed — file may be invalid</string>
+    <string name="settings_eyebrow">// SETTINGS</string>
+    <string name="settings_screen_title">Settings</string>
+    <string name="settings_screen_subtitle">Appearance, security, and backup</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_dynamic_color_title">Match wallpaper colors</string>
+    <string name="settings_dynamic_color_subtitle">Use Material You dynamic color</string>
+    <string name="settings_section_security">Security</string>
+    <string name="settings_app_lock_title">Lock app on launch</string>
+    <string name="settings_app_lock_subtitle">Require biometrics or a PIN to open the app</string>
+    <string name="settings_info_lock_title">Lock Info section</string>
+    <string name="settings_info_lock_subtitle">Require biometrics or a PIN to open Info</string>
+    <string name="settings_change_pin">Change app PIN</string>
+    <string name="settings_set_pin">Set app PIN</string>
+    <string name="settings_pin_subtitle">Numeric PIN used as a fallback for the locks above</string>
+    <string name="settings_remove_pin">Remove app PIN</string>
+    <string name="settings_section_ai_parsing">AI Task Parsing</string>
+    <string name="settings_ai_parsing_connected">Quick-add text is parsed automatically (priority, due date, list, and tags) using the same Google sign-in as Drive backup below. Free accounts get 20 AI parses a day.</string>
+    <string name="settings_ai_parsing_disconnected">Sign in with Google below (under Backup) to let quick-add parse your task text automatically — priority, due date, list, and tags. Free accounts get 20 AI parses a day.</string>
+    <string name="settings_section_sync">Sync</string>
+    <string name="settings_sync_connected">Your lists, tasks, flashcards, and info are kept in sync across devices signed in to %1$s.</string>
+    <string name="settings_last_synced">Last synced %1$s</string>
+    <string name="settings_not_synced">Not synced yet</string>
+    <string name="settings_sync_disconnected">Sign in with Google below (under Backup) to sync your data across devices.</string>
+    <string name="settings_section_backup">Backup</string>
+    <string name="settings_backup_drive_title">Google Drive</string>
+    <string name="settings_drive_signin_prompt">Sign in to back up your data to Google Drive and restore it on another device.</string>
+    <string name="settings_sign_in_with_google">Sign in with Google</string>
+    <string name="settings_signed_in_as">Signed in as %1$s</string>
+    <string name="settings_last_backed_up">Last backed up %1$s</string>
+    <string name="settings_never_backed_up">Never backed up</string>
+    <string name="settings_auto_backup_title">Automatic daily backup</string>
+    <string name="settings_backed_up_success">Backed up to Drive</string>
+    <string name="settings_backup_failed">Backup failed: %1$s</string>
+    <string name="settings_backup_now">Back up now</string>
+    <string name="settings_sign_out">Sign out</string>
+    <string name="settings_local_file_title">Local file</string>
+    <string name="settings_export_subtitle">Export a backup file to keep a copy or move to another phone.</string>
+    <string name="settings_export_action"> Export</string>
+    <string name="settings_import_action"> Import</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_version_label">Version</string>
+    <string name="settings_drive_restore_title">Restore from Drive?</string>
+    <string name="settings_drive_restore_message">This replaces everything on this device with your Google Drive backup. This can\'t be undone.</string>
+    <string name="settings_restored_success">Restored from Drive</string>
+    <string name="settings_restore_failed">Restore failed: %1$s</string>
+    <string name="settings_unknown_error">unknown error</string>
+
+    <!-- Components B / Security -->
+    <string name="cd_search">Search</string>
+    <string name="pin_setup_title">Set app PIN</string>
+    <string name="pin_setup_subtitle">Used as a fallback unlock method wherever biometrics are required.</string>
+    <string name="pin_setup_new_pin_label">New PIN (4-6 digits)</string>
+    <string name="pin_setup_confirm_pin_label">Confirm PIN</string>
+    <string name="pin_setup_mismatch">PINs don\'t match</string>
+    <string name="suggested_list_chip_message">AI suggests: \"%1$s\"</string>
+    <string name="suggested_list_chip_create_action">Create &amp; use</string>
+    <string name="suggested_list_chip_dismiss_cd">Dismiss suggestion</string>
+    <string name="tag_chip_remove_cd">Remove %1$s</string>
+    <string name="app_lock_title">App locked</string>
+    <string name="app_lock_subtitle">Verify it\'s you to open the app.</string>
+    <plurals name="star_rating_cd">
+        <item quantity="one">%1$d star</item>
+        <item quantity="other">%1$d stars</item>
+    </plurals>
+
+    <!-- More shared content descriptions -->
+    <string name="cd_add_item">Add item</string>
+    <string name="cd_clear_field">Clear %1$s</string>
+    <string name="cd_edit_named_item">Edit %1$s</string>
+    <string name="cd_export">Export</string>
+    <string name="cd_share">Share</string>
+
+    <!-- Field type -->
+    <string name="field_type_text">Text</string>
+    <string name="field_type_number">Number</string>
+    <string name="field_type_rating">Rating</string>
+    <string name="field_type_date">Date</string>
+
+    <!-- Lists -->
+    <string name="lists_empty_title">No lists yet</string>
+    <string name="lists_empty_subtitle">Movies to watch, books to read, favorite quotes — any simple list you want to keep.</string>
+    <string name="lists_screen_eyebrow">// LISTS</string>
+    <string name="lists_screen_title">Your Lists</string>
+    <string name="lists_screen_subtitle">Structured collections</string>
+    <string name="lists_new_list_button">+ New List</string>
+    <string name="lists_checkbox_option_label">Items have a checkbox (e.g. watched, read)</string>
+    <string name="lists_ai_add_placeholder">e.g. Movie \"Odyssey\", or paste a link</string>
+    <string name="lists_ai_add_busy_placeholder">Reading your item...</string>
+    <string name="lists_default_name">List</string>
+    <string name="lists_cd_manage_fields">Manage fields</string>
+    <string name="lists_share_chooser_title">Share list</string>
+    <string name="lists_export_csv">Export as CSV</string>
+    <string name="lists_export_pdf">Export as PDF</string>
+    <string name="lists_detail_empty_title">Nothing here yet</string>
+    <string name="lists_detail_empty_subtitle">Add your first item to this list.</string>
+    <string name="lists_new_item_title">New item</string>
+    <string name="lists_edit_item_title">Edit item</string>
+    <string name="lists_deleted_items_count">Deleted %1$d items</string>
+    <string name="lists_quick_add_placeholder">Add %1$s...</string>
+    <string name="lists_quick_add_placeholder_fallback">an item</string>
+    <string name="lists_cd_check_selected">Check selected</string>
+    <string name="lists_cd_uncheck_selected">Uncheck selected</string>
+    <string name="lists_item_title_label">Title</string>
+    <string name="lists_link_label">Link (optional)</string>
+    <string name="lists_link_placeholder">example.com</string>
+    <string name="lists_note_label">Note (optional)</string>
+    <string name="lists_set_date">Set date</string>
+    <string name="lists_field_name_label">Field name (e.g. Author)</string>
+    <string name="lists_field_type_label">Type</string>
+    <string name="lists_field_color_label">Color</string>
+    <string name="lists_delete_field_action">Delete field</string>
+    <string name="lists_custom_fields_title">Custom fields</string>
+    <string name="lists_custom_fields_empty_subtitle">Add fields like Author, Rating, or Release date to track more than just a title.</string>
+    <string name="lists_add_field_action">" Add field"</string>
+    <string name="lists_new_field_title">New field</string>
+    <string name="lists_edit_field_title">Edit field</string>
+    <string name="lists_ai_review_title">Review before adding</string>
+    <string name="lists_destination_list_eyebrow">// DESTINATION LIST</string>
+    <string name="lists_choose_list">Choose list</string>
+    <string name="lists_add_to_list_action">Add to list</string>
 </resources>

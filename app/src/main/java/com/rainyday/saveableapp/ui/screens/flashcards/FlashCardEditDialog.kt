@@ -15,7 +15,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import com.rainyday.saveableapp.R
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
 @Composable
 fun FlashCardEditDialog(
@@ -37,26 +41,26 @@ fun FlashCardEditDialog(
                 OutlinedTextField(
                     value = front,
                     onValueChange = { front = it },
-                    label = { Text("Front") },
+                    label = { Text(stringResource(R.string.flashcards_card_front_label)) },
                     minLines = 2,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = back,
                     onValueChange = { back = it },
-                    label = { Text("Back") },
+                    label = { Text(stringResource(R.string.flashcards_card_back_label)) },
                     minLines = 2,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp)
+                        .padding(top = Dimens.d12)
                 )
                 if (onDelete != null) {
                     TextButton(
                         onClick = onDelete,
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(top = Dimens.d8)
                     ) {
-                        Text("Delete")
+                        Text(stringResource(R.string.action_delete))
                     }
                 }
             }
@@ -65,10 +69,25 @@ fun FlashCardEditDialog(
             TextButton(
                 enabled = front.isNotBlank() && back.isNotBlank(),
                 onClick = { onConfirm(front.trim(), back.trim()) }
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun FlashCardEditDialogPreview() {
+    SaveableAppTheme {
+        FlashCardEditDialog(
+            title = "Edit card",
+            initialFront = "Casa",
+            initialBack = "House",
+            onDismiss = {},
+            onConfirm = { _, _ -> },
+            onDelete = {}
+        )
+    }
 }

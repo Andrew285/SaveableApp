@@ -1,6 +1,19 @@
 package com.rainyday.saveableapp.navigation
 
+import androidx.annotation.StringRes
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Folder
@@ -9,21 +22,22 @@ import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.rainyday.saveableapp.R
+import com.rainyday.saveableapp.ui.theme.Dimens
 import com.rainyday.saveableapp.ui.screens.flashcards.FlashCardDeckDetailScreen
 import com.rainyday.saveableapp.ui.screens.flashcards.FlashCardDecksScreen
 import com.rainyday.saveableapp.ui.screens.flashcards.FlashCardStudyScreen
@@ -35,14 +49,18 @@ import com.rainyday.saveableapp.ui.screens.search.SearchScreen
 import com.rainyday.saveableapp.ui.screens.settings.SettingsScreen
 import com.rainyday.saveableapp.ui.screens.todo.TasksScreen
 
-private data class BottomTab(val screen: Screen, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+private data class BottomTab(
+    val screen: Screen,
+    @StringRes val labelRes: Int,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
 
 private val bottomTabs = listOf(
-    BottomTab(Screen.Tasks, "Tasks", Icons.Filled.Checklist),
-    BottomTab(Screen.SimpleLists, "Lists", Icons.Filled.Folder),
-    BottomTab(Screen.FlashCardDecks, "Cards", Icons.Filled.Style),
-    BottomTab(Screen.InfoCategories, "Vault", Icons.Filled.Lock),
-    BottomTab(Screen.Settings, "Settings", Icons.Filled.Tune)
+    BottomTab(Screen.Tasks, R.string.nav_tasks, Icons.Filled.Checklist),
+    BottomTab(Screen.SimpleLists, R.string.nav_lists, Icons.Filled.Folder),
+    BottomTab(Screen.FlashCardDecks, R.string.nav_cards, Icons.Filled.Style),
+    BottomTab(Screen.InfoCategories, R.string.nav_vault, Icons.Filled.Lock),
+    BottomTab(Screen.Settings, R.string.nav_settings, Icons.Filled.Tune)
 )
 
 @Composable
@@ -57,28 +75,48 @@ fun AppNavHost() {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .navigationBarsPadding()
+                        .height(Dimens.d64),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
                     bottomTabs.forEach { tab ->
                         val selected = tab.screen::class.qualifiedName == currentRoute
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(tab.screen) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = Color.Transparent
+                        val label = stringResource(tab.labelRes)
+                        val color = if (selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(1f)
+                                .selectable(
+                                    selected = selected,
+                                    role = Role.Tab,
+                                    onClick = {
+                                        navController.navigate(tab.screen) {
+                                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
+                                ),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(tab.icon, contentDescription = label, tint = color)
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = color,
+                                modifier = Modifier.padding(top = Dimens.d2)
                             )
-                        )
+                        }
                     }
                 }
             }
@@ -87,7 +125,9 @@ fun AppNavHost() {
         NavHost(
             navController = navController,
             startDestination = Screen.Tasks,
-            modifier = Modifier.padding(padding)
+            modifier = Modifier
+                .padding(padding)
+                .consumeWindowInsets(WindowInsets.navigationBars)
         ) {
             composable<Screen.Tasks> {
                 TasksScreen(onOpenSearch = { navController.navigate(Screen.Search) })

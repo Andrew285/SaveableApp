@@ -33,8 +33,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.ui.screens.todo.formatDate
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,10 +66,10 @@ fun InfoBlockEditDialog(
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 if (templates.isNotEmpty()) {
                     Text(
-                        text = "Start from a template",
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        text = stringResource(R.string.info_start_from_template),
+                        modifier = Modifier.padding(bottom = Dimens.d8)
                     )
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.d8)) {
                         items(templates) { template ->
                             SuggestionChip(
                                 onClick = {
@@ -80,42 +84,42 @@ fun InfoBlockEditDialog(
                 OutlinedTextField(
                     value = blockTitle,
                     onValueChange = { blockTitle = it },
-                    label = { Text("Title (e.g. Passport number)") },
+                    label = { Text(stringResource(R.string.info_block_title_label)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = if (templates.isNotEmpty()) 12.dp else 0.dp)
+                        .padding(top = if (templates.isNotEmpty()) Dimens.d12 else Dimens.d0)
                 )
                 OutlinedTextField(
                     value = content,
                     onValueChange = { content = it },
-                    label = { Text("Value") },
+                    label = { Text(stringResource(R.string.info_block_value_label)) },
                     minLines = 2,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp)
+                        .padding(top = Dimens.d12)
                 )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp),
+                        .padding(top = Dimens.d12),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(checked = sensitive, onCheckedChange = { sensitive = it })
-                    Text("Mask value until tapped")
+                    Text(stringResource(R.string.info_mask_value_label))
                 }
                 Text(
-                    text = "Expiry date",
-                    modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+                    text = stringResource(R.string.info_expiry_date_label),
+                    modifier = Modifier.padding(top = Dimens.d12, bottom = Dimens.d8)
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AssistChip(
                         onClick = { showDatePicker = true },
-                        label = { Text(expiryDate?.let { formatDate(it) } ?: "Set expiry date") }
+                        label = { Text(expiryDate?.let { formatDate(it) } ?: stringResource(R.string.info_set_expiry_date)) }
                     )
                     if (expiryDate != null) {
                         IconButton(onClick = { expiryDate = null }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Clear expiry date")
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_clear_expiry_date))
                         }
                     }
                 }
@@ -123,9 +127,9 @@ fun InfoBlockEditDialog(
                     TextButton(
                         onClick = onDelete,
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = Dimens.d4)
                     ) {
-                        Text("Delete")
+                        Text(stringResource(R.string.action_delete))
                     }
                 }
             }
@@ -134,10 +138,10 @@ fun InfoBlockEditDialog(
             TextButton(
                 enabled = blockTitle.isNotBlank() && content.isNotBlank(),
                 onClick = { onConfirm(blockTitle.trim(), content.trim(), sensitive, expiryDate) }
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 
@@ -149,13 +153,27 @@ fun InfoBlockEditDialog(
                 TextButton(onClick = {
                     expiryDate = state.selectedDateMillis
                     showDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         ) {
             DatePicker(state = state)
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun InfoBlockEditDialogPreview() {
+    SaveableAppTheme {
+        InfoBlockEditDialog(
+            title = "New entry",
+            templates = infoBlockTemplates(),
+            onDismiss = {},
+            onConfirm = { _, _, _, _ -> },
+            onDelete = {}
+        )
     }
 }

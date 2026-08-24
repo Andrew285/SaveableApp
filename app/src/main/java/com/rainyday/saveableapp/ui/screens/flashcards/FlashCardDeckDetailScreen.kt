@@ -41,12 +41,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rainyday.saveableapp.R
+import com.rainyday.saveableapp.data.local.FlashCardDeckEntity
 import com.rainyday.saveableapp.data.local.FlashCardEntity
+import com.rainyday.saveableapp.ui.components.DetailHeader
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -57,58 +63,89 @@ fun FlashCardDeckDetailScreen(deckId: String, onBack: () -> Unit, onStudy: () ->
     val viewModel: FlashCardViewModel = hiltViewModel()
     val deck by viewModel.deck.collectAsState()
     val cards by viewModel.cards.collectAsState()
+
+    FlashCardDeckDetailScreenContent(
+        onBack = onBack,
+        onStudy = onStudy,
+        deck = deck,
+        cards = cards,
+        onMoveCard = viewModel::moveCard,
+        onCreateCard = viewModel::createCard,
+        onUpdateCard = viewModel::updateCard,
+        onDeleteCardWithUndo = viewModel::deleteCardWithUndo,
+        onRestoreCard = viewModel::restoreCard
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FlashCardDeckDetailScreenContent(
+    onBack: () -> Unit,
+    onStudy: () -> Unit,
+    deck: FlashCardDeckEntity?,
+    cards: List<FlashCardEntity>,
+    onMoveCard: (Int, Int) -> Unit = { _, _ -> },
+    onCreateCard: (String, String) -> Unit = { _, _ -> },
+    onUpdateCard: (FlashCardEntity, String, String) -> Unit = { _, _, _ -> },
+    onDeleteCardWithUndo: suspend (FlashCardEntity) -> FlashCardEntity = { it },
+    onRestoreCard: suspend (FlashCardEntity) -> Unit = {}
+) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val undoActionLabel = stringResource(R.string.action_undo)
+    val deletedCardMessage = stringResource(R.string.flashcards_deleted_card_message)
+    val newCardLabel = stringResource(R.string.flashcards_new_card)
+    val editCardLabel = stringResource(R.string.flashcards_edit_card)
 
     var showAddDialog by remember { mutableStateOf(false) }
     var cardPendingEdit by remember { mutableStateOf<FlashCardEntity?>(null) }
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        viewModel.moveCard(from.index, to.index)
+        onMoveCard(from.index, to.index)
     }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "New card")
+                Icon(Icons.Filled.Add, contentDescription = newCardLabel)
             }
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                com.rainyday.saveableapp.ui.components.DetailHeader(
+                DetailHeader(
                     onBack = onBack,
-                    backLabel = "Cards",
+                    backLabel = stringResource(R.string.nav_cards),
                     modifier = Modifier.weight(1f)
                 )
                 if (cards.isNotEmpty()) {
                     IconButton(onClick = onStudy) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = "Study this deck")
+                        Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.flashcards_study_this_deck_cd))
                     }
                 }
             }
             Text(
-                text = deck?.name ?: "Deck",
+                text = deck?.name ?: stringResource(R.string.flashcards_deck_fallback_title),
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = 20.dp)
+                modifier = Modifier.padding(horizontal = Dimens.d20)
             )
             if (cards.isEmpty()) {
                 EmptyState(
                     icon = Icons.Filled.Style,
-                    title = "No cards yet",
-                    subtitle = "Add a card with a front and back side, then tap it to flip and study.",
-                    actionLabel = "New card",
+                    title = stringResource(R.string.flashcards_empty_cards_title),
+                    subtitle = stringResource(R.string.flashcards_empty_cards_subtitle),
+                    actionLabel = newCardLabel,
                     onAction = { showAddDialog = true },
                     modifier = Modifier.weight(1f)
                 )
             } else {
                 LazyColumn(
                     state = lazyListState,
-                    contentPadding = PaddingValues(20.dp, 8.dp, 20.dp, 96.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    contentPadding = PaddingValues(Dimens.d20, Dimens.d8, Dimens.d20, Dimens.d96),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.d10)
                 ) {
                     itemsIndexed(cards, key = { _, card -> card.id }) { _, card ->
                         ReorderableItem(reorderableState, key = card.id) { _ ->
@@ -126,10 +163,10 @@ fun FlashCardDeckDetailScreen(deckId: String, onBack: () -> Unit, onStudy: () ->
 
     if (showAddDialog) {
         FlashCardEditDialog(
-            title = "New card",
+            title = newCardLabel,
             onDismiss = { showAddDialog = false },
             onConfirm = { front, back ->
-                viewModel.createCard(front, back)
+                onCreateCard(front, back)
                 showAddDialog = false
             }
         )
@@ -137,21 +174,22 @@ fun FlashCardDeckDetailScreen(deckId: String, onBack: () -> Unit, onStudy: () ->
 
     cardPendingEdit?.let { card ->
         FlashCardEditDialog(
-            title = "Edit card",
+            title = editCardLabel,
             initialFront = card.front,
             initialBack = card.back,
             onDismiss = { cardPendingEdit = null },
             onConfirm = { front, back ->
-                viewModel.updateCard(card, front, back)
+                onUpdateCard(card, front, back)
                 cardPendingEdit = null
             },
             onDelete = {
                 cardPendingEdit = null
                 scope.launch {
                     snackbarHostState.showUndoableDelete(
-                        message = "Deleted card",
-                        delete = { viewModel.deleteCardWithUndo(card) },
-                        restore = { viewModel.restoreCard(it) }
+                        message = deletedCardMessage,
+                        actionLabel = undoActionLabel,
+                        delete = { onDeleteCardWithUndo(card) },
+                        restore = { onRestoreCard(it) }
                     )
                 }
             }
@@ -174,21 +212,21 @@ private fun FlipCardRow(
 
     Card(
         onClick = { showBack = !showBack },
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.d0),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = Dimens.d8, vertical = Dimens.d4),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(88.dp)
-                    .padding(horizontal = 8.dp)
+                    .height(Dimens.d88)
+                    .padding(horizontal = Dimens.d8)
                     .graphicsLayer {
                         rotationY = rotation
                         cameraDistance = 12f * density
@@ -212,14 +250,48 @@ private fun FlipCardRow(
                 }
             }
             IconButton(onClick = onEdit) {
-                Icon(Icons.Filled.Edit, contentDescription = "Edit card")
+                Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.flashcards_edit_card))
             }
             Icon(
                 Icons.Filled.DragHandle,
-                contentDescription = "Reorder",
+                contentDescription = stringResource(R.string.cd_reorder),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.then(dragHandle())
             )
         }
+    }
+}
+
+private val previewDeck = FlashCardDeckEntity(id = "deck-1", name = "Spanish Vocabulary", icon = "language", colorHex = "#6750A4", createdAt = 0L, updatedAt = 0L)
+
+private val previewCards = listOf(
+    FlashCardEntity(id = "card-1", deckId = "deck-1", front = "Casa", back = "House", createdAt = 0L, updatedAt = 0L),
+    FlashCardEntity(id = "card-2", deckId = "deck-1", front = "Perro", back = "Dog", createdAt = 0L, updatedAt = 0L),
+    FlashCardEntity(id = "card-3", deckId = "deck-1", front = "Libro", back = "Book", createdAt = 0L, updatedAt = 0L)
+)
+
+@Preview(showBackground = true)
+@Composable
+fun FlashCardDeckDetailScreenPreview() {
+    SaveableAppTheme {
+        FlashCardDeckDetailScreenContent(
+            onBack = {},
+            onStudy = {},
+            deck = previewDeck,
+            cards = previewCards
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun FlashCardDeckDetailScreenEmptyPreview() {
+    SaveableAppTheme {
+        FlashCardDeckDetailScreenContent(
+            onBack = {},
+            onStudy = {},
+            deck = previewDeck,
+            cards = emptyList()
+        )
     }
 }

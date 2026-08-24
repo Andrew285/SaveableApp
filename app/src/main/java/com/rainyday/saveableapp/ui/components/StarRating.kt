@@ -11,8 +11,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
+import com.rainyday.saveableapp.R
+import com.rainyday.saveableapp.ui.theme.AppAlpha
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
 private val defaultStarColor = parseHexColor("#E8B23A")
 
@@ -27,10 +32,10 @@ fun StarRatingInput(
 ) {
     Row(modifier = modifier) {
         for (i in 1..maxStars) {
-            IconButton(onClick = { onRatingChange(if (rating == i) 0 else i) }, modifier = Modifier.size(36.dp)) {
+            IconButton(onClick = { onRatingChange(if (rating == i) 0 else i) }, modifier = Modifier.size(Dimens.d36)) {
                 Icon(
                     imageVector = if (i <= rating) Icons.Filled.Star else Icons.Filled.StarBorder,
-                    contentDescription = "$i star${if (i == 1) "" else "s"}",
+                    contentDescription = pluralStringResource(R.plurals.star_rating_cd, i, i),
                     tint = if (i <= rating) color else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -44,7 +49,7 @@ fun StarRatingDisplay(
     rating: Int,
     modifier: Modifier = Modifier,
     maxStars: Int = 5,
-    starSize: Dp = 14.dp,
+    starSize: Dp = Dimens.d14,
     color: Color = defaultStarColor
 ) {
     Row(modifier = modifier) {
@@ -52,9 +57,25 @@ fun StarRatingDisplay(
             Icon(
                 imageVector = if (i <= rating) Icons.Filled.Star else Icons.Filled.StarBorder,
                 contentDescription = null,
-                tint = if (i <= rating) color else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                tint = if (i <= rating) color else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = AppAlpha.a40),
                 modifier = Modifier.size(starSize)
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun StarRatingInputPreview() {
+    SaveableAppTheme {
+        StarRatingInput(rating = 3, onRatingChange = {})
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun StarRatingDisplayPreview() {
+    SaveableAppTheme {
+        StarRatingDisplay(rating = 4)
     }
 }

@@ -23,10 +23,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.prefs.PreferencesRepository
+import com.rainyday.saveableapp.ui.theme.AppAlpha
+import com.rainyday.saveableapp.ui.theme.Dimens
 import kotlinx.coroutines.launch
 
 /** Biometric-first unlock UI with a numeric PIN fallback, shared by the app-launch and Info-section locks. */
@@ -46,32 +49,34 @@ fun LockGateContent(
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
+    val incorrectPinMessage = stringResource(R.string.lock_gate_incorrect_pin)
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(Dimens.d32),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
             Icons.Filled.Lock,
             contentDescription = null,
-            modifier = Modifier.size(56.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+            modifier = Modifier.size(Dimens.d56),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = AppAlpha.a60)
         )
-        Text(text = title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp))
+        Text(text = title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = Dimens.d16))
         Text(
             text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp)
+            modifier = Modifier.padding(top = Dimens.d4)
         )
         if (error != null) {
             Text(
                 text = error.orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = Dimens.d8)
             )
         }
 
@@ -79,11 +84,11 @@ fun LockGateContent(
             OutlinedTextField(
                 value = pin,
                 onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) pin = it },
-                label = { Text("PIN") },
+                label = { Text(stringResource(R.string.lock_gate_pin_label)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                modifier = Modifier.padding(top = 20.dp)
+                modifier = Modifier.padding(top = Dimens.d20)
             )
             Button(
                 onClick = {
@@ -91,16 +96,16 @@ fun LockGateContent(
                         if (preferencesRepository.verifyAppPin(pin)) {
                             onUnlocked()
                         } else {
-                            error = "Incorrect PIN"
+                            error = incorrectPinMessage
                             pin = ""
                         }
                     }
                 },
                 enabled = pin.length in 4..6,
-                modifier = Modifier.padding(top = 12.dp)
-            ) { Text("Unlock") }
+                modifier = Modifier.padding(top = Dimens.d12)
+            ) { Text(stringResource(R.string.lock_gate_unlock)) }
             TextButton(onClick = { showPinEntry = false; error = null; pin = "" }) {
-                Text("Use biometrics instead")
+                Text(stringResource(R.string.lock_gate_use_biometrics))
             }
         } else {
             Button(
@@ -111,11 +116,11 @@ fun LockGateContent(
                         onError = { message -> error = message }
                     )
                 },
-                modifier = Modifier.padding(top = 20.dp)
-            ) { Text("Unlock") }
+                modifier = Modifier.padding(top = Dimens.d20)
+            ) { Text(stringResource(R.string.lock_gate_unlock)) }
             if (pinIsSet) {
                 TextButton(onClick = { showPinEntry = true; error = null }) {
-                    Text("Use PIN instead")
+                    Text(stringResource(R.string.lock_gate_use_pin))
                 }
             }
         }

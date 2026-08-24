@@ -37,7 +37,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.local.Priority
 import com.rainyday.saveableapp.data.local.RecurrenceRule
 import com.rainyday.saveableapp.data.local.TagEntity
@@ -50,6 +52,8 @@ import com.rainyday.saveableapp.ui.components.SuggestedListChip
 import com.rainyday.saveableapp.ui.components.TagChip
 import com.rainyday.saveableapp.ui.components.parseHexColor
 import com.rainyday.saveableapp.ui.theme.AccentColors
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -102,35 +106,35 @@ fun TaskEditSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp)
+                .padding(horizontal = Dimens.d20)
+                .padding(bottom = Dimens.d24)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
         ) {
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Title") },
+                label = { Text(stringResource(R.string.task_edit_title_label)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                label = { Text("Notes") },
+                label = { Text(stringResource(R.string.task_edit_notes_label)) },
                 minLines = 2,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp)
+                    .padding(top = Dimens.d12)
             )
 
             if (availableLists.isNotEmpty()) {
-                SectionLabel("// DESTINATION LIST")
+                SectionLabel(stringResource(R.string.task_edit_destination_list_eyebrow))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val selectedList = availableLists.firstOrNull { it.id == listId }
                     AssistChip(
                         onClick = { showListMenu = true },
-                        label = { Text(selectedList?.name ?: "Choose list") },
+                        label = { Text(selectedList?.name ?: stringResource(R.string.task_edit_choose_list)) },
                         trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) }
                     )
                     DropdownMenu(expanded = showListMenu, onDismissRequest = { showListMenu = false }) {
@@ -155,12 +159,12 @@ fun TaskEditSheet(
                             }
                         },
                         onDismiss = { suggestionDismissed = true },
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(top = Dimens.d8)
                     )
                 }
             }
 
-            SectionLabel("// PRIORITY LEVEL")
+            SectionLabel(stringResource(R.string.task_edit_priority_eyebrow))
             SegmentedPillRow(
                 options = Priority.entries,
                 selected = priority,
@@ -169,7 +173,7 @@ fun TaskEditSheet(
                 accentColor = { parseHexColor(it.accentHex()) }
             )
 
-            SectionLabel("// REPEATS")
+            SectionLabel(stringResource(R.string.task_edit_repeats_eyebrow))
             SegmentedPillRow(
                 options = RecurrenceRule.entries,
                 selected = recurrence,
@@ -177,30 +181,38 @@ fun TaskEditSheet(
                 label = { it.label() }
             )
 
-            SectionLabel("// DEADLINE")
+            SectionLabel(stringResource(R.string.task_edit_deadline_eyebrow))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AssistChip(
                     onClick = { showDatePicker = true },
-                    label = { Text(dueDate?.let { formatDate(it) } ?: "Set date") }
+                    label = { Text(dueDate?.let { formatDate(it) } ?: stringResource(R.string.task_edit_set_date)) }
                 )
                 if (dueDate != null) {
                     IconButton(onClick = { dueDate = null }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Clear date")
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_clear_date))
                     }
                 }
             }
 
-            SectionLabel("// CARD HIGHLIGHT COLOR")
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            SectionLabel(stringResource(R.string.task_edit_highlight_color_eyebrow))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Dimens.d12)) {
                 AssistChip(
                     onClick = { colorHex = null },
-                    label = { Text(if (colorHex == null) "Auto ✓" else "Auto") }
+                    label = {
+                        Text(
+                            if (colorHex == null) {
+                                stringResource(R.string.task_edit_auto_color_selected)
+                            } else {
+                                stringResource(R.string.task_edit_auto_color)
+                            }
+                        )
+                    }
                 )
                 ColorPickerRow(selectedHex = colorHex.orEmpty(), onSelect = { colorHex = it })
             }
 
-            SectionLabel("// TAGS")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel(stringResource(R.string.task_edit_tags_eyebrow))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Dimens.d8)) {
                 availableTags.forEach { tag ->
                     val selected = tag.id in selectedTagIds
                     TagChip(
@@ -215,13 +227,13 @@ fun TaskEditSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(top = Dimens.d8),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
                     value = newTagName,
                     onValueChange = { newTagName = it },
-                    label = { Text("New tag") },
+                    label = { Text(stringResource(R.string.task_edit_new_tag_label)) },
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
@@ -233,22 +245,26 @@ fun TaskEditSheet(
                         }
                     }
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add tag")
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_add_tag))
                 }
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 20.dp),
+                    .padding(top = Dimens.d20),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (onDelete != null) {
-                    PillButtonDanger(text = "Delete Task", onClick = onDelete, modifier = Modifier.weight(1f))
-                    Spacer(modifier = Modifier.padding(start = 12.dp))
+                    PillButtonDanger(
+                        text = stringResource(R.string.task_edit_delete_task),
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.padding(start = Dimens.d12))
                 }
                 PillButtonFilled(
-                    text = "Save",
+                    text = stringResource(R.string.action_save),
                     enabled = title.isNotBlank() && listId.isNotEmpty(),
                     onClick = {
                         onSave(
@@ -276,10 +292,10 @@ fun TaskEditSheet(
                 TextButton(onClick = {
                     dueDate = state.selectedDateMillis
                     showDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         ) {
             DatePicker(state = state)
@@ -293,9 +309,37 @@ private fun SectionLabel(text: String) {
         text = text,
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+        modifier = Modifier.padding(top = Dimens.d16, bottom = Dimens.d8)
     )
 }
 
 fun formatDate(millis: Long): String =
     SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(millis))
+
+@Preview(showBackground = true)
+@Composable
+private fun TaskEditSheetPreview() {
+    SaveableAppTheme {
+        TaskEditSheet(
+            availableLists = listOf(
+                TodoListEntity(id = "list-1", name = "Personal", colorHex = "#6750A4", icon = "checklist", position = 0, createdAt = 0L, updatedAt = 0L),
+                TodoListEntity(id = "list-2", name = "Work", colorHex = "#1E88E5", icon = "work", position = 1, createdAt = 0L, updatedAt = 0L)
+            ),
+            initialListId = "list-1",
+            initialTitle = "Finish quarterly report",
+            initialNotes = "Include the Q3 revenue breakdown",
+            initialPriority = Priority.HIGH,
+            initialDueDate = System.currentTimeMillis(),
+            initialTagIds = setOf("tag-1"),
+            initialRecurrence = RecurrenceRule.NONE,
+            availableTags = listOf(
+                TagEntity(id = "tag-1", name = "urgent", colorHex = "#E53935", updatedAt = 0L),
+                TagEntity(id = "tag-2", name = "home", colorHex = "#43A047", updatedAt = 0L)
+            ),
+            onCreateTag = { _, _ -> },
+            onDismiss = {},
+            onSave = { _, _, _, _, _, _, _, _ -> },
+            onDelete = {}
+        )
+    }
+}

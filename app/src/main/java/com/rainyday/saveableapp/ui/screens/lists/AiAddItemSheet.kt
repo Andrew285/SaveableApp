@@ -33,14 +33,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
+import com.rainyday.saveableapp.data.local.FieldType
 import com.rainyday.saveableapp.data.local.SimpleListEntity
 import com.rainyday.saveableapp.ui.components.LinkPreviewCard
 import com.rainyday.saveableapp.ui.components.PillButtonFilled
 import com.rainyday.saveableapp.ui.components.SuggestedListChip
 import com.rainyday.saveableapp.ui.components.normalizeUrl
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 import kotlinx.coroutines.launch
 
 /**
@@ -78,8 +83,8 @@ fun AiAddItemSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp)
+                .padding(horizontal = Dimens.d20)
+                .padding(bottom = Dimens.d24)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
         ) {
@@ -88,10 +93,10 @@ fun AiAddItemSheet(
                     imageVector = Icons.Filled.AutoAwesome,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(end = 8.dp)
+                    modifier = Modifier.padding(end = Dimens.d8)
                 )
                 Text(
-                    text = "Review before adding",
+                    text = stringResource(R.string.lists_ai_review_title),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
@@ -99,19 +104,19 @@ fun AiAddItemSheet(
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                label = { Text("Title") },
+                label = { Text(stringResource(R.string.lists_item_title_label)) },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp)
+                    .padding(top = Dimens.d16)
             )
 
-            SectionLabel("// DESTINATION LIST")
+            SectionLabel(stringResource(R.string.lists_destination_list_eyebrow))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val selectedList = availableLists.firstOrNull { it.id == listId }
                 AssistChip(
                     onClick = { showListMenu = true },
-                    label = { Text(selectedList?.name ?: "Choose list") },
+                    label = { Text(selectedList?.name ?: stringResource(R.string.lists_choose_list)) },
                     trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) }
                 )
                 DropdownMenu(expanded = showListMenu, onDismissRequest = { showListMenu = false }) {
@@ -129,22 +134,23 @@ fun AiAddItemSheet(
                         )
                     }
                 }
-                if (suggestedNewListName != null && !suggestionDismissed && onCreateSuggestedList != null) {
-                    SuggestedListChip(
-                        suggestedName = suggestedNewListName,
-                        onCreateAndUse = {
-                            scope.launch {
-                                // A brand-new list has no custom fields yet, so any field values entered
-                                // for the previously selected list no longer apply.
-                                fieldValues.clear()
-                                listId = onCreateSuggestedList(suggestedNewListName)
-                                suggestionDismissed = true
-                            }
-                        },
-                        onDismiss = { suggestionDismissed = true },
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
+            }
+
+            if (suggestedNewListName != null && !suggestionDismissed && onCreateSuggestedList != null) {
+                SuggestedListChip(
+                    suggestedName = suggestedNewListName,
+                    onCreateAndUse = {
+                        scope.launch {
+                            // A brand-new list has no custom fields yet, so any field values entered
+                            // for the previously selected list no longer apply.
+                            fieldValues.clear()
+                            listId = onCreateSuggestedList(suggestedNewListName)
+                            suggestionDismissed = true
+                        }
+                    },
+                    onDismiss = { suggestionDismissed = true },
+                    modifier = Modifier.padding(top = Dimens.d8)
+                )
             }
 
             currentFields.forEach { field ->
@@ -160,41 +166,41 @@ fun AiAddItemSheet(
             OutlinedTextField(
                 value = link,
                 onValueChange = { link = it },
-                label = { Text("Link (optional)") },
-                placeholder = { Text("example.com") },
+                label = { Text(stringResource(R.string.lists_link_label)) },
+                placeholder = { Text(stringResource(R.string.lists_link_placeholder)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp)
+                    .padding(top = Dimens.d16)
             )
             normalizeUrl(link)?.let { normalized ->
                 LinkPreviewCard(
                     url = normalized,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
+                        .padding(top = Dimens.d8)
                 )
             }
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                label = { Text("Note (optional)") },
+                label = { Text(stringResource(R.string.lists_note_label)) },
                 minLines = 2,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp)
+                    .padding(top = Dimens.d12)
             )
 
             PillButtonFilled(
-                text = "Add to list",
+                text = stringResource(R.string.lists_add_to_list_action),
                 enabled = text.isNotBlank() && listId.isNotEmpty(),
                 onClick = {
                     onSave(listId, text.trim(), note.trim().ifBlank { null }, normalizeUrl(link), fieldValues.toMap())
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 20.dp)
+                    .padding(top = Dimens.d20)
             )
         }
     }
@@ -207,10 +213,10 @@ fun AiAddItemSheet(
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { fieldValues[fieldId] = it.toString() }
                     datePickerFieldId = null
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { datePickerFieldId = null }) { Text("Cancel") }
+                TextButton(onClick = { datePickerFieldId = null }) { Text(stringResource(R.string.action_cancel)) }
             }
         ) {
             DatePicker(state = state)
@@ -224,6 +230,55 @@ private fun SectionLabel(text: String) {
         text = text,
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+        modifier = Modifier.padding(top = Dimens.d16, bottom = Dimens.d8)
     )
 }
+
+@Preview(showBackground = true)
+@Composable
+private fun AiAddItemSheetPreview() {
+    SaveableAppTheme {
+        AiAddItemSheet(
+            availableLists = listOf(
+                SimpleListEntity(id = "list-1", name = "Books to Read", icon = "book", colorHex = "#1E88E5", createdAt = 0L, updatedAt = 0L),
+                SimpleListEntity(id = "list-2", name = "Movies to Watch", icon = "movie", colorHex = "#6750A4", createdAt = 0L, updatedAt = 0L)
+            ),
+            fieldsByListId = mapOf(
+                "list-1" to listOf(
+                    FieldDefinitionEntity(id = "field-1", listId = "list-1", name = "Author", type = FieldType.TEXT, colorHex = "#43A047", createdAt = 0L, updatedAt = 0L)
+                )
+            ),
+            initialListId = "list-1",
+            initialText = "Dune",
+            initialNote = "Recommended by Alex",
+            onDismiss = {},
+            onSave = { _, _, _, _, _ -> }
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AiAddIteSheetSuggestedListNamePreview() {
+    SaveableAppTheme {
+        AiAddItemSheet(
+            availableLists = listOf(
+                SimpleListEntity(id = "list-1", name = "Books to Read", icon = "book", colorHex = "#1E88E5", createdAt = 0L, updatedAt = 0L),
+                SimpleListEntity(id = "list-2", name = "Movies to Watch", icon = "movie", colorHex = "#6750A4", createdAt = 0L, updatedAt = 0L)
+            ),
+            fieldsByListId = mapOf(
+                "list-1" to listOf(
+                    FieldDefinitionEntity(id = "field-1", listId = "list-1", name = "Author", type = FieldType.TEXT, colorHex = "#43A047", createdAt = 0L, updatedAt = 0L)
+                )
+            ),
+            initialListId = "list-1",
+            initialText = "Dune",
+            initialNote = "Recommended by Alex",
+            suggestedNewListName = "Groceries",
+            onCreateSuggestedList = { str -> "" },
+            onDismiss = {},
+            onSave = { _, _, _, _, _ -> }
+        )
+    }
+}
+

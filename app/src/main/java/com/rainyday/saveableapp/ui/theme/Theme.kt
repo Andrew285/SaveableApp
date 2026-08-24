@@ -87,7 +87,7 @@ fun SaveableAppTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = AppTypography,
         shapes = AppShapes,
         content = content
     )

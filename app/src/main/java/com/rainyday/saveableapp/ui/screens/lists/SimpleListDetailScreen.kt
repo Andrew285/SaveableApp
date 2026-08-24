@@ -55,19 +55,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.export.buildListCsv
 import com.rainyday.saveableapp.data.export.writeListPdf
 import com.rainyday.saveableapp.data.local.FieldDefinitionEntity
+import com.rainyday.saveableapp.data.local.FieldType
+import com.rainyday.saveableapp.data.local.FieldValueEntity
+import com.rainyday.saveableapp.data.local.SimpleListEntity
 import com.rainyday.saveableapp.data.local.SimpleListItemEntity
+import com.rainyday.saveableapp.data.repository.SimpleListItemSnapshot
 import com.rainyday.saveableapp.ui.components.DetailHeader
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.FieldValueChip
 import com.rainyday.saveableapp.ui.components.LinkPreviewCard
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
+import com.rainyday.saveableapp.ui.theme.AppAlpha
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -75,12 +84,55 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
-    val context = LocalContext.current
     val viewModel: SimpleListItemViewModel = hiltViewModel()
     val list by viewModel.list.collectAsState()
     val items by viewModel.items.collectAsState()
     val fields by viewModel.fields.collectAsState()
     val fieldValuesByItem by viewModel.fieldValuesByItem.collectAsState()
+
+    SimpleListDetailScreenContent(
+        onBack = onBack,
+        list = list,
+        items = items,
+        fields = fields,
+        fieldValuesByItem = fieldValuesByItem,
+        onMoveItem = viewModel::moveItem,
+        onBulkSetChecked = viewModel::bulkSetChecked,
+        onBulkDeleteWithUndo = viewModel::bulkDeleteWithUndo,
+        onRestoreItems = viewModel::restoreItems,
+        onSetChecked = viewModel::setChecked,
+        onCreateItem = viewModel::createItem,
+        onUpdateItem = viewModel::updateItem,
+        onDeleteItemWithUndo = viewModel::deleteItemWithUndo,
+        onRestoreItem = viewModel::restoreItem,
+        onAddField = viewModel::addField,
+        onUpdateField = viewModel::updateField,
+        onDeleteField = viewModel::deleteField
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SimpleListDetailScreenContent(
+    onBack: () -> Unit,
+    list: SimpleListEntity?,
+    items: List<SimpleListItemEntity>,
+    fields: List<FieldDefinitionEntity>,
+    fieldValuesByItem: Map<String, List<FieldValueEntity>>,
+    onMoveItem: (Int, Int) -> Unit = { _, _ -> },
+    onBulkSetChecked: (List<SimpleListItemEntity>, Boolean) -> Unit = { _, _ -> },
+    onBulkDeleteWithUndo: suspend (List<SimpleListItemEntity>) -> List<SimpleListItemSnapshot> = { emptyList() },
+    onRestoreItems: suspend (List<SimpleListItemSnapshot>) -> Unit = {},
+    onSetChecked: (SimpleListItemEntity, Boolean) -> Unit = { _, _ -> },
+    onCreateItem: (String, String?, String?, Map<String, String>) -> Unit = { _, _, _, _ -> },
+    onUpdateItem: (SimpleListItemEntity, String, String?, String?, Map<String, String>) -> Unit = { _, _, _, _, _ -> },
+    onDeleteItemWithUndo: suspend (SimpleListItemEntity) -> SimpleListItemSnapshot = { item -> SimpleListItemSnapshot(item, emptyList()) },
+    onRestoreItem: suspend (SimpleListItemSnapshot) -> Unit = {},
+    onAddField: (String, FieldType, String) -> Unit = { _, _, _ -> },
+    onUpdateField: (FieldDefinitionEntity, String, FieldType, String) -> Unit = { _, _, _, _ -> },
+    onDeleteField: (FieldDefinitionEntity) -> Unit = {}
+) {
+    val context = LocalContext.current
     val fieldsById = fields.associateBy { it.id }
     val showCheckbox = list?.showCheckbox ?: true
     val snackbarHostState = remember { SnackbarHostState() }
@@ -93,6 +145,7 @@ fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
     var selectionMode by remember { mutableStateOf(false) }
     var selectedItemIds by remember { mutableStateOf(emptySet<String>()) }
     var showExportMenu by remember { mutableStateOf(false) }
+    val undoActionLabel = stringResource(R.string.action_undo)
 
     val csvExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) {
@@ -118,39 +171,43 @@ fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
 
     val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        viewModel.moveItem(from.index, to.index)
+        onMoveItem(from.index, to.index)
     }
 
     Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } }) { padding ->
         Column(modifier = Modifier.padding(padding)) {
+            val defaultListName = stringResource(R.string.lists_default_name)
             if (selectionMode) {
                 val selectedItems = items.filter { it.id in selectedItemIds }
+                val deletedItemsMessage = stringResource(R.string.lists_deleted_items_count, selectedItems.size)
                 ItemSelectionActionBar(
                     count = selectedItemIds.size,
                     showCheckAction = showCheckbox,
-                    onCheck = { viewModel.bulkSetChecked(selectedItems, true); clearSelection() },
-                    onUncheck = { viewModel.bulkSetChecked(selectedItems, false); clearSelection() },
+                    onCheck = { onBulkSetChecked(selectedItems, true); clearSelection() },
+                    onUncheck = { onBulkSetChecked(selectedItems, false); clearSelection() },
                     onDelete = {
                         clearSelection()
                         scope.launch {
                             snackbarHostState.showUndoableDelete(
-                                message = "Deleted ${selectedItems.size} items",
-                                delete = { viewModel.bulkDeleteWithUndo(selectedItems) },
-                                restore = { viewModel.restoreItems(it) }
+                                message = deletedItemsMessage,
+                                actionLabel = undoActionLabel,
+                                delete = { onBulkDeleteWithUndo(selectedItems) },
+                                restore = { onRestoreItems(it) }
                             )
                         }
                     },
                     onClose = { clearSelection() }
                 )
             } else {
+                val shareChooserTitle = stringResource(R.string.lists_share_chooser_title)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    DetailHeader(onBack = onBack, backLabel = "Lists", modifier = Modifier.weight(1f))
+                    DetailHeader(onBack = onBack, backLabel = stringResource(R.string.nav_lists), modifier = Modifier.weight(1f))
                     IconButton(onClick = { showFieldsManager = true }) {
-                        Icon(Icons.Filled.Tune, contentDescription = "Manage fields")
+                        Icon(Icons.Filled.Tune, contentDescription = stringResource(R.string.lists_cd_manage_fields))
                     }
                     IconButton(onClick = {
                         val text = buildString {
-                            appendLine(list?.name ?: "List")
+                            appendLine(list?.name ?: defaultListName)
                             items.forEach { item ->
                                 if (showCheckbox) append(if (item.isChecked) "[x] " else "[ ] ")
                                 append(item.text)
@@ -163,27 +220,27 @@ fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, text)
                         }
-                        context.startActivity(Intent.createChooser(intent, "Share list"))
+                        context.startActivity(Intent.createChooser(intent, shareChooserTitle))
                     }) {
-                        Icon(Icons.Filled.Share, contentDescription = "Share")
+                        Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.cd_share))
                     }
                     Box {
                         IconButton(onClick = { showExportMenu = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "Export")
+                            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.cd_export))
                         }
                         DropdownMenu(expanded = showExportMenu, onDismissRequest = { showExportMenu = false }) {
                             DropdownMenuItem(
-                                text = { Text("Export as CSV") },
+                                text = { Text(stringResource(R.string.lists_export_csv)) },
                                 onClick = {
                                     showExportMenu = false
-                                    csvExportLauncher.launch("${list?.name ?: "list"}.csv")
+                                    csvExportLauncher.launch("${list?.name ?: defaultListName.lowercase()}.csv")
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Export as PDF") },
+                                text = { Text(stringResource(R.string.lists_export_pdf)) },
                                 onClick = {
                                     showExportMenu = false
-                                    pdfExportLauncher.launch("${list?.name ?: "list"}.pdf")
+                                    pdfExportLauncher.launch("${list?.name ?: defaultListName.lowercase()}.pdf")
                                 }
                             )
                         }
@@ -191,18 +248,18 @@ fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
                 }
             }
             Text(
-                text = list?.name ?: "List",
+                text = list?.name ?: defaultListName,
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = 20.dp)
+                modifier = Modifier.padding(horizontal = Dimens.d20)
             )
 
             if (items.isEmpty()) {
                 EmptyState(
                     icon = Icons.Filled.FiberManualRecord,
-                    title = "Nothing here yet",
-                    subtitle = "Add your first item to this list.",
-                    actionLabel = "New item",
+                    title = stringResource(R.string.lists_detail_empty_title),
+                    subtitle = stringResource(R.string.lists_detail_empty_subtitle),
+                    actionLabel = stringResource(R.string.lists_new_item_title),
                     onAction = { showAddDialog = true },
                     modifier = Modifier.weight(1f)
                 )
@@ -210,8 +267,8 @@ fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
                 LazyColumn(
                     state = lazyListState,
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(20.dp, 12.dp, 20.dp, 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    contentPadding = PaddingValues(Dimens.d20, Dimens.d12, Dimens.d20, Dimens.d12),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.d8)
                 ) {
                     itemsIndexed(items, key = { _, item -> item.id }) { _, item ->
                         ReorderableItem(reorderableState, key = item.id) { _ ->
@@ -223,7 +280,7 @@ fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
                                 fieldChips = chips,
                                 selectionMode = selectionMode,
                                 selected = item.id in selectedItemIds,
-                                onToggleChecked = { viewModel.setChecked(item, it) },
+                                onToggleChecked = { onSetChecked(item, it) },
                                 onClick = {
                                     if (selectionMode) toggleSelected(item.id) else itemPendingEdit = item
                                 },
@@ -237,12 +294,15 @@ fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
                     }
                 }
                 QuickAddItemBar(
-                    placeholder = "Add ${list?.name?.lowercase()?.trimEnd('s') ?: "an item"}...",
+                    placeholder = stringResource(
+                        R.string.lists_quick_add_placeholder,
+                        list?.name?.lowercase()?.trimEnd('s') ?: stringResource(R.string.lists_quick_add_placeholder_fallback)
+                    ),
                     text = quickAddText,
                     onTextChange = { quickAddText = it },
                     onSubmit = {
                         if (quickAddText.isNotBlank()) {
-                            viewModel.createItem(quickAddText.trim(), null, null, emptyMap())
+                            onCreateItem(quickAddText.trim(), null, null, emptyMap())
                             quickAddText = ""
                         }
                     }
@@ -253,19 +313,20 @@ fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
 
     if (showAddDialog) {
         ItemEditDialog(
-            title = "New item",
+            title = stringResource(R.string.lists_new_item_title),
             fields = fields,
             onDismiss = { showAddDialog = false },
             onConfirm = { text, note, url, fieldValues ->
-                viewModel.createItem(text, note, url, fieldValues)
+                onCreateItem(text, note, url, fieldValues)
                 showAddDialog = false
             }
         )
     }
 
     itemPendingEdit?.let { item ->
+        val deletedItemMessage = stringResource(R.string.deleted_named_item, item.text)
         ItemEditDialog(
-            title = "Edit item",
+            title = stringResource(R.string.lists_edit_item_title),
             initialText = item.text,
             initialNote = item.note.orEmpty(),
             initialUrl = item.url.orEmpty(),
@@ -273,16 +334,17 @@ fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
             initialFieldValues = fieldValuesByItem[item.id].orEmpty().associate { it.fieldId to it.value },
             onDismiss = { itemPendingEdit = null },
             onConfirm = { text, note, url, fieldValues ->
-                viewModel.updateItem(item, text, note, url, fieldValues)
+                onUpdateItem(item, text, note, url, fieldValues)
                 itemPendingEdit = null
             },
             onDelete = {
                 itemPendingEdit = null
                 scope.launch {
                     snackbarHostState.showUndoableDelete(
-                        message = "Deleted \"${item.text}\"",
-                        delete = { viewModel.deleteItemWithUndo(item) },
-                        restore = { viewModel.restoreItem(it) }
+                        message = deletedItemMessage,
+                        actionLabel = undoActionLabel,
+                        delete = { onDeleteItemWithUndo(item) },
+                        restore = { onRestoreItem(it) }
                     )
                 }
             }
@@ -293,9 +355,9 @@ fun SimpleListDetailScreen(listId: String, onBack: () -> Unit) {
         FieldsManagerDialog(
             fields = fields,
             onDismiss = { showFieldsManager = false },
-            onAddField = viewModel::addField,
-            onUpdateField = viewModel::updateField,
-            onDeleteField = viewModel::deleteField
+            onAddField = onAddField,
+            onUpdateField = onUpdateField,
+            onDeleteField = onDeleteField
         )
     }
 }
@@ -305,7 +367,7 @@ private fun QuickAddItemBar(placeholder: String, text: String, onTextChange: (St
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = Dimens.d20, vertical = Dimens.d12),
         verticalAlignment = Alignment.CenterVertically
     ) {
         androidx.compose.material3.OutlinedTextField(
@@ -318,8 +380,8 @@ private fun QuickAddItemBar(placeholder: String, text: String, onTextChange: (St
         )
         Box(
             modifier = Modifier
-                .padding(start = 8.dp)
-                .size(40.dp)
+                .padding(start = Dimens.d8)
+                .size(Dimens.d40)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary)
                 .clickable(onClick = onSubmit),
@@ -327,9 +389,9 @@ private fun QuickAddItemBar(placeholder: String, text: String, onTextChange: (St
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Send,
-                contentDescription = "Add item",
+                contentDescription = stringResource(R.string.cd_add_item),
                 tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(Dimens.d18)
             )
         }
     }
@@ -347,30 +409,34 @@ private fun ItemSelectionActionBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = Dimens.d12, vertical = Dimens.d8),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onClose) {
-            Icon(Icons.Filled.Close, contentDescription = "Cancel selection")
+            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_cancel_selection))
         }
         Text(
-            text = "$count selected",
+            text = stringResource(R.string.selection_count, count),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 4.dp)
+                .padding(start = Dimens.d4)
         )
         if (showCheckAction) {
             IconButton(onClick = onCheck) {
-                Icon(Icons.Filled.Check, contentDescription = "Check selected")
+                Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.lists_cd_check_selected))
             }
             IconButton(onClick = onUncheck) {
-                Icon(Icons.Filled.FiberManualRecord, contentDescription = "Uncheck selected", modifier = Modifier.size(16.dp))
+                Icon(
+                    Icons.Filled.FiberManualRecord,
+                    contentDescription = stringResource(R.string.lists_cd_uncheck_selected),
+                    modifier = Modifier.size(Dimens.d16)
+                )
             }
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete selected")
+            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete_selected))
         }
     }
 }
@@ -389,10 +455,10 @@ private fun ItemRow(
     dragHandle: @Composable () -> Modifier
 ) {
     Card(
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.d0),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                MaterialTheme.colorScheme.primary.copy(alpha = AppAlpha.a12)
             } else {
                 MaterialTheme.colorScheme.surfaceVariant
             }
@@ -404,7 +470,7 @@ private fun ItemRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp, horizontal = 12.dp),
+                .padding(vertical = Dimens.d8, horizontal = Dimens.d12),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (selectionMode) {
@@ -416,15 +482,15 @@ private fun ItemRow(
                     Icons.Filled.FiberManualRecord,
                     contentDescription = null,
                     modifier = Modifier
-                        .size(8.dp)
-                        .padding(start = 14.dp, end = 6.dp),
+                        .size(Dimens.d8)
+                        .padding(start = Dimens.d14, end = Dimens.d6),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 4.dp)
+                    .padding(start = Dimens.d4)
             ) {
                 Text(
                     text = item.text,
@@ -444,14 +510,14 @@ private fun ItemRow(
                         url = item.url,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 6.dp)
+                            .padding(top = Dimens.d6)
                     )
                 }
                 if (fieldChips.isNotEmpty()) {
                     FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(top = 4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.d6),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.d4),
+                        modifier = Modifier.padding(top = Dimens.d4)
                     ) {
                         fieldChips.forEach { (field, value) -> FieldValueChip(field = field, rawValue = value) }
                     }
@@ -459,10 +525,56 @@ private fun ItemRow(
             }
             Icon(
                 Icons.Filled.DragHandle,
-                contentDescription = "Reorder",
+                contentDescription = stringResource(R.string.cd_reorder),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.then(dragHandle())
             )
         }
+    }
+}
+
+private val previewDetailList = SimpleListEntity(id = "list-1", name = "Books to Read", icon = "book", colorHex = "#1E88E5", showCheckbox = true, createdAt = 0L, updatedAt = 0L)
+
+private val previewDetailFields = listOf(
+    FieldDefinitionEntity(id = "field-1", listId = "list-1", name = "Author", type = FieldType.TEXT, colorHex = "#43A047", createdAt = 0L, updatedAt = 0L),
+    FieldDefinitionEntity(id = "field-2", listId = "list-1", name = "Rating", type = FieldType.RATING, colorHex = "#FB8C00", createdAt = 0L, updatedAt = 0L)
+)
+
+private val previewDetailItems = listOf(
+    SimpleListItemEntity(id = "item-1", listId = "list-1", text = "Dune", note = "Recommended by Alex", isChecked = false, createdAt = 0L, updatedAt = 0L),
+    SimpleListItemEntity(id = "item-2", listId = "list-1", text = "Project Hail Mary", isChecked = true, createdAt = 0L, updatedAt = 0L)
+)
+
+private val previewDetailFieldValues = mapOf(
+    "item-1" to listOf(
+        FieldValueEntity(id = "value-1", itemId = "item-1", fieldId = "field-1", value = "Frank Herbert", updatedAt = 0L)
+    )
+)
+
+@Preview(showBackground = true)
+@Composable
+fun SimpleListDetailScreenPreview() {
+    SaveableAppTheme {
+        SimpleListDetailScreenContent(
+            onBack = {},
+            list = previewDetailList,
+            items = previewDetailItems,
+            fields = previewDetailFields,
+            fieldValuesByItem = previewDetailFieldValues
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SimpleListDetailScreenEmptyPreview() {
+    SaveableAppTheme {
+        SimpleListDetailScreenContent(
+            onBack = {},
+            list = previewDetailList,
+            items = emptyList(),
+            fields = previewDetailFields,
+            fieldValuesByItem = emptyMap()
+        )
     }
 }

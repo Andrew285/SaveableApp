@@ -23,9 +23,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.local.InfoCategoryEntity
+import com.rainyday.saveableapp.data.repository.InfoCategorySnapshot
 import com.rainyday.saveableapp.ui.components.DirectoryCard
 import com.rainyday.saveableapp.ui.components.EditListDialog
 import com.rainyday.saveableapp.ui.components.EmptyState
@@ -34,6 +37,8 @@ import com.rainyday.saveableapp.ui.components.LoadingIndicator
 import com.rainyday.saveableapp.ui.components.PillButtonPrimary
 import com.rainyday.saveableapp.ui.components.ScreenHeader
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 import kotlinx.coroutines.launch
 
 @Composable
@@ -43,8 +48,31 @@ fun InfoCategoriesScreen(
 ) {
     val viewModel: InfoCategoriesViewModel = hiltViewModel()
     val categories by viewModel.categories.collectAsState()
+
+    InfoCategoriesScreenContent(
+        onOpenCategory = onOpenCategory,
+        onOpenSearch = onOpenSearch,
+        categories = categories,
+        onCreateCategory = viewModel::createCategory,
+        onUpdateCategory = viewModel::updateCategory,
+        onDeleteCategoryWithUndo = viewModel::deleteCategoryWithUndo,
+        onRestoreCategory = viewModel::restoreCategory
+    )
+}
+
+@Composable
+private fun InfoCategoriesScreenContent(
+    onOpenCategory: (String) -> Unit,
+    onOpenSearch: () -> Unit,
+    categories: List<InfoCategoryUiModel>?,
+    onCreateCategory: (String, String, String) -> Unit = { _, _, _ -> },
+    onUpdateCategory: (InfoCategoryEntity, String, String, String) -> Unit = { _, _, _, _ -> },
+    onDeleteCategoryWithUndo: suspend (InfoCategoryEntity) -> InfoCategorySnapshot = { InfoCategorySnapshot(it, emptyList()) },
+    onRestoreCategory: suspend (InfoCategorySnapshot) -> Unit = {}
+) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val undoActionLabel = stringResource(R.string.action_undo)
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var categoryPendingEdit by remember { mutableStateOf<InfoCategoryEntity?>(null) }
@@ -56,9 +84,9 @@ fun InfoCategoriesScreen(
                 currentCategories == null -> LoadingIndicator(modifier = Modifier.weight(1f))
                 currentCategories.isEmpty() -> EmptyState(
                     icon = Icons.Filled.Badge,
-                    title = "No categories yet",
-                    subtitle = "Keep sizes, IDs, and important details organized and available at a glance.",
-                    actionLabel = "New category",
+                    title = stringResource(R.string.info_empty_categories_title),
+                    subtitle = stringResource(R.string.info_empty_categories_subtitle),
+                    actionLabel = stringResource(R.string.info_new_category),
                     onAction = { showCreateDialog = true },
                     modifier = Modifier.weight(1f)
                 )
@@ -66,17 +94,17 @@ fun InfoCategoriesScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        contentPadding = PaddingValues(horizontal = Dimens.d20, vertical = Dimens.d8),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.d12),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.d12)
                     ) {
                         item(span = { GridItemSpan(2) }) {
                             ScreenHeader(
-                                eyebrow = "// VAULT",
-                                title = "The Vault",
-                                subtitle = "Locked away, always at hand",
+                                eyebrow = stringResource(R.string.info_vault_eyebrow),
+                                title = stringResource(R.string.info_vault_title),
+                                subtitle = stringResource(R.string.info_vault_subtitle),
                                 onActionClick = onOpenSearch,
-                                modifier = Modifier.padding(horizontal = 0.dp)
+                                modifier = Modifier.padding(horizontal = Dimens.d0)
                             )
                         }
                         items(currentCategories, key = { it.category.id }) { entry ->
@@ -92,11 +120,11 @@ fun InfoCategoriesScreen(
                         }
                     }
                     PillButtonPrimary(
-                        text = "+ New Category",
+                        text = stringResource(R.string.info_new_category_cta),
                         onClick = { showCreateDialog = true },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                            .padding(horizontal = Dimens.d20, vertical = Dimens.d12)
                     )
                 }
             }
@@ -105,38 +133,75 @@ fun InfoCategoriesScreen(
 
     if (showCreateDialog) {
         EditListDialog(
-            title = "New category",
-            confirmLabel = "Create",
+            title = stringResource(R.string.info_new_category),
+            confirmLabel = stringResource(R.string.action_create),
             initialIcon = "document",
             onDismiss = { showCreateDialog = false },
             onConfirm = { result ->
-                viewModel.createCategory(result.name, result.icon, result.colorHex)
+                onCreateCategory(result.name, result.icon, result.colorHex)
                 showCreateDialog = false
             }
         )
     }
 
     categoryPendingEdit?.let { category ->
+        val deletedCategoryMessage = stringResource(R.string.deleted_named_item, category.name)
         EditListDialog(
-            title = "Edit category",
+            title = stringResource(R.string.info_edit_category),
             initialName = category.name,
             initialIcon = category.icon,
             initialColorHex = category.colorHex,
             onDismiss = { categoryPendingEdit = null },
             onConfirm = { result ->
-                viewModel.updateCategory(category, result.name, result.icon, result.colorHex)
+                onUpdateCategory(category, result.name, result.icon, result.colorHex)
                 categoryPendingEdit = null
             },
             onDelete = {
                 categoryPendingEdit = null
                 scope.launch {
                     snackbarHostState.showUndoableDelete(
-                        message = "Deleted \"${category.name}\"",
-                        delete = { viewModel.deleteCategoryWithUndo(category) },
-                        restore = { viewModel.restoreCategory(it) }
+                        message = deletedCategoryMessage,
+                        actionLabel = undoActionLabel,
+                        delete = { onDeleteCategoryWithUndo(category) },
+                        restore = { onRestoreCategory(it) }
                     )
                 }
             }
+        )
+    }
+}
+
+private val previewInfoCategories = listOf(
+    InfoCategoryUiModel(
+        category = InfoCategoryEntity(id = "cat-1", name = "Passports", icon = "badge", colorHex = "#6750A4", position = 0, updatedAt = 0L),
+        itemCount = 4
+    ),
+    InfoCategoryUiModel(
+        category = InfoCategoryEntity(id = "cat-2", name = "Vehicle", icon = "document", colorHex = "#1E88E5", position = 1, updatedAt = 0L),
+        itemCount = 2
+    )
+)
+
+@Preview(showBackground = true)
+@Composable
+fun InfoCategoriesScreenPreview() {
+    SaveableAppTheme {
+        InfoCategoriesScreenContent(
+            onOpenCategory = {},
+            onOpenSearch = {},
+            categories = previewInfoCategories
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun InfoCategoriesScreenEmptyPreview() {
+    SaveableAppTheme {
+        InfoCategoriesScreenContent(
+            onOpenCategory = {},
+            onOpenSearch = {},
+            categories = emptyList()
         )
     }
 }

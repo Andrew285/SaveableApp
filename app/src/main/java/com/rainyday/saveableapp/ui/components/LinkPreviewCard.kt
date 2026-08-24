@@ -33,10 +33,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import com.rainyday.saveableapp.data.links.LinkPreview
 import com.rainyday.saveableapp.data.links.linkHostLabel
 import com.rainyday.saveableapp.ui.rememberAppEntryPoint
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -59,26 +61,43 @@ fun LinkPreviewCard(url: String, modifier: Modifier = Modifier) {
 
     val title = preview?.title?.takeIf { it.isNotBlank() } ?: linkHostLabel(url) ?: url
 
+    LinkPreviewCardContent(
+        title = title,
+        hostLabel = linkHostLabel(url) ?: url,
+        thumbnailUrl = preview?.imageUrl,
+        onClick = {
+            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+        },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun LinkPreviewCardContent(
+    title: String,
+    hostLabel: String,
+    thumbnailUrl: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(Dimens.d10))
             .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(10.dp))
-            .clickable {
-                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-            }
-            .padding(8.dp),
+            .border(Dimens.d1, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(Dimens.d10))
+            .clickable(onClick = onClick)
+            .padding(Dimens.d8),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RemoteThumbnail(
-            url = preview?.imageUrl,
+            url = thumbnailUrl,
             modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .size(Dimens.d44)
+                .clip(RoundedCornerShape(Dimens.d8))
         )
         Column(
             modifier = Modifier
-                .padding(start = 10.dp)
+                .padding(start = Dimens.d10)
         ) {
             Text(
                 text = title,
@@ -88,12 +107,12 @@ fun LinkPreviewCard(url: String, modifier: Modifier = Modifier) {
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = linkHostLabel(url) ?: url,
+                text = hostLabel,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 2.dp)
+                modifier = Modifier.padding(top = Dimens.d2)
             )
         }
     }
@@ -129,7 +148,7 @@ private fun RemoteThumbnail(url: String?, modifier: Modifier = Modifier) {
                 imageVector = Icons.Filled.Link,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(Dimens.d18)
             )
         }
     }
@@ -179,5 +198,31 @@ private object ThumbnailCache {
     @Synchronized
     fun put(key: String, value: ImageBitmap) {
         cache[key] = value
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun LinkPreviewCardContentPreview() {
+    SaveableAppTheme {
+        LinkPreviewCardContent(
+            title = "Kotlin Coroutines on Android",
+            hostLabel = "developer.android.com",
+            thumbnailUrl = null,
+            onClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun RemoteThumbnailPreview() {
+    SaveableAppTheme {
+        RemoteThumbnail(
+            url = null,
+            modifier = Modifier
+                .size(Dimens.d44)
+                .clip(RoundedCornerShape(Dimens.d8))
+        )
     }
 }

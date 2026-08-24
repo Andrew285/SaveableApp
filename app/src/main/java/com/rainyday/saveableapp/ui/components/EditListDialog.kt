@@ -21,9 +21,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.local.FieldTemplate
 import com.rainyday.saveableapp.ui.theme.AccentColors
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
 data class EditListResult(
     val name: String,
@@ -46,8 +50,8 @@ fun EditListDialog(
     initialColorHex: String = AccentColors.palette.first(),
     showCheckboxOption: Boolean = false,
     initialShowCheckbox: Boolean = true,
-    checkboxOptionLabel: String = "Show checkbox on items",
-    confirmLabel: String = "Save",
+    checkboxOptionLabel: String = stringResource(R.string.edit_list_dialog_show_checkbox),
+    confirmLabel: String = stringResource(R.string.action_save),
     templates: List<ListTemplateOption> = emptyList(),
     onDismiss: () -> Unit,
     onConfirm: (EditListResult) -> Unit,
@@ -66,10 +70,10 @@ fun EditListDialog(
             Column {
                 if (templates.isNotEmpty()) {
                     Text(
-                        text = "Start from a template",
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        text = stringResource(R.string.edit_list_dialog_start_from_template),
+                        modifier = Modifier.padding(bottom = Dimens.d8)
                     )
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(Dimens.d8)) {
                         items(templates) { template ->
                             SuggestionChip(
                                 onClick = {
@@ -87,31 +91,31 @@ fun EditListDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.edit_list_dialog_name_label)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = if (templates.isNotEmpty()) 12.dp else 0.dp)
+                        .padding(top = if (templates.isNotEmpty()) Dimens.d12 else Dimens.d0)
                 )
                 Text(
-                    text = "Color",
-                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                    text = stringResource(R.string.edit_list_dialog_color_label),
+                    modifier = Modifier.padding(top = Dimens.d16, bottom = Dimens.d8)
                 )
                 ColorPickerRow(selectedHex = colorHex, onSelect = { colorHex = it })
                 Text(
-                    text = "Icon",
-                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                    text = stringResource(R.string.edit_list_dialog_icon_label),
+                    modifier = Modifier.padding(top = Dimens.d16, bottom = Dimens.d8)
                 )
                 IconPickerRow(selectedKey = icon, accentHex = colorHex, onSelect = { icon = it })
                 if (showCheckboxOption) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 12.dp),
+                            .padding(top = Dimens.d12),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(checked = showCheckbox, onCheckedChange = { showCheckbox = it })
-                        Text(checkboxOptionLabel, modifier = Modifier.width(220.dp))
+                        Text(checkboxOptionLabel, modifier = Modifier.width(Dimens.d220))
                     }
                 }
                 if (onDelete != null) {
@@ -120,9 +124,9 @@ fun EditListDialog(
                         colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
                             contentColor = androidx.compose.material3.MaterialTheme.colorScheme.error
                         ),
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(top = Dimens.d8)
                     ) {
-                        Text("Delete")
+                        Text(stringResource(R.string.action_delete))
                     }
                 }
             }
@@ -138,7 +142,23 @@ fun EditListDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun EditListDialogPreview() {
+    SaveableAppTheme {
+        EditListDialog(
+            title = "Edit list",
+            initialName = "Groceries",
+            initialColorHex = AccentColors.palette.first(),
+            showCheckboxOption = true,
+            onDismiss = {},
+            onConfirm = {},
+            onDelete = {}
+        )
+    }
 }

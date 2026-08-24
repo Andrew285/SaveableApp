@@ -46,10 +46,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rainyday.saveableapp.R
 import com.rainyday.saveableapp.data.local.InfoBlockEntity
+import com.rainyday.saveableapp.data.local.InfoCategoryEntity
 import com.rainyday.saveableapp.ui.rememberAppEntryPoint
 import com.rainyday.saveableapp.ui.components.DetailHeader
 import com.rainyday.saveableapp.ui.components.EmptyState
@@ -59,6 +63,9 @@ import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import com.rainyday.saveableapp.ui.screens.todo.formatDate
 import com.rainyday.saveableapp.ui.security.LockGateContent
 import com.rainyday.saveableapp.ui.security.SecureScreenEffect
+import com.rainyday.saveableapp.ui.theme.AppAlpha
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -78,7 +85,7 @@ fun InfoCategoryDetailScreen(categoryId: String, onBack: () -> Unit) {
 
     if (!unlocked) {
         LockedGate(
-            categoryName = category?.name ?: "Info",
+            categoryName = category?.name ?: stringResource(R.string.info_category_fallback_name),
             onUnlocked = { unlocked = true },
             onBack = onBack
         )
@@ -87,42 +94,69 @@ fun InfoCategoryDetailScreen(categoryId: String, onBack: () -> Unit) {
 
     SecureScreenEffect()
 
+    InfoCategoryDetailScreenContent(
+        category = category,
+        blocks = blocks,
+        onBack = onBack,
+        onSetFavorite = viewModel::setFavorite,
+        onCreateBlock = viewModel::createBlock,
+        onUpdateBlock = viewModel::updateBlock,
+        onDeleteBlockWithUndo = viewModel::deleteBlockWithUndo,
+        onRestoreBlock = viewModel::restoreBlock
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun InfoCategoryDetailScreenContent(
+    category: InfoCategoryEntity?,
+    blocks: List<InfoBlockEntity>,
+    onBack: () -> Unit,
+    onSetFavorite: (InfoBlockEntity, Boolean) -> Unit = { _, _ -> },
+    onCreateBlock: (String, String, Boolean, Long?) -> Unit = { _, _, _, _ -> },
+    onUpdateBlock: (InfoBlockEntity, String, String, Boolean, Long?) -> Unit = { _, _, _, _, _ -> },
+    onDeleteBlockWithUndo: suspend (InfoBlockEntity) -> InfoBlockEntity = { it },
+    onRestoreBlock: suspend (InfoBlockEntity) -> Unit = {}
+) {
     var showAddDialog by remember { mutableStateOf(false) }
     var blockPendingEdit by remember { mutableStateOf<InfoBlockEntity?>(null) }
     val clipboard = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val undoActionLabel = stringResource(R.string.action_undo)
+    val newEntryLabel = stringResource(R.string.info_new_entry)
+    val vaultLabel = stringResource(R.string.info_vault_label)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         floatingActionButton = {
             androidx.compose.material3.FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "New entry")
+                Icon(Icons.Filled.Add, contentDescription = newEntryLabel)
             }
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
-            DetailHeader(onBack = onBack, backLabel = "Vault")
+            DetailHeader(onBack = onBack, backLabel = vaultLabel)
             Text(
-                text = category?.name ?: "Vault",
+                text = category?.name ?: vaultLabel,
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = 20.dp)
+                modifier = Modifier.padding(horizontal = Dimens.d20)
             )
         if (blocks.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.Lock,
-                title = "Nothing saved here yet",
-                subtitle = "Add sizes, IDs, or any detail you want available at a glance.",
-                actionLabel = "New entry",
+                title = stringResource(R.string.info_empty_blocks_title),
+                subtitle = stringResource(R.string.info_empty_blocks_subtitle),
+                actionLabel = newEntryLabel,
                 onAction = { showAddDialog = true },
                 modifier = Modifier.weight(1f)
             )
         } else {
             val expiringSoonCount = blocks.count { it.expiryDate != null && isExpiringSoon(it.expiryDate) }
             LazyColumn(
-                contentPadding = PaddingValues(20.dp, 8.dp, 20.dp, 96.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                contentPadding = PaddingValues(Dimens.d20, Dimens.d8, Dimens.d20, Dimens.d96),
+                verticalArrangement = Arrangement.spacedBy(Dimens.d8)
             ) {
                 if (expiringSoonCount > 0) {
                     item {
@@ -131,14 +165,14 @@ fun InfoCategoryDetailScreen(categoryId: String, onBack: () -> Unit) {
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
-                                modifier = Modifier.padding(12.dp),
+                                modifier = Modifier.padding(Dimens.d12),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(Icons.Filled.EventBusy, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer)
                                 Text(
-                                    text = if (expiringSoonCount == 1) "1 entry expiring or expired" else "$expiringSoonCount entries expiring or expired",
+                                    text = pluralStringResource(R.plurals.info_expiring_count, expiringSoonCount, expiringSoonCount),
                                     color = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.padding(start = 8.dp)
+                                    modifier = Modifier.padding(start = Dimens.d8)
                                 )
                             }
                         }
@@ -150,7 +184,7 @@ fun InfoCategoryDetailScreen(categoryId: String, onBack: () -> Unit) {
                         icon = IconCatalog.resolve(category?.icon ?: IconCatalog.defaultKey),
                         accentHex = category?.colorHex ?: "#2EE6A8",
                         onClick = { blockPendingEdit = block },
-                        onToggleFavorite = { viewModel.setFavorite(block, !block.isFavorite) },
+                        onToggleFavorite = { onSetFavorite(block, !block.isFavorite) },
                         onCopy = { clipboard.copyText(block.content) }
                     )
                 }
@@ -161,35 +195,37 @@ fun InfoCategoryDetailScreen(categoryId: String, onBack: () -> Unit) {
 
     if (showAddDialog) {
         InfoBlockEditDialog(
-            title = "New entry",
-            templates = infoBlockTemplates,
+            title = newEntryLabel,
+            templates = infoBlockTemplates(),
             onDismiss = { showAddDialog = false },
             onConfirm = { title, content, sensitive, expiryDate ->
-                viewModel.createBlock(title, content, sensitive, expiryDate)
+                onCreateBlock(title, content, sensitive, expiryDate)
                 showAddDialog = false
             }
         )
     }
 
     blockPendingEdit?.let { block ->
+        val deletedBlockMessage = stringResource(R.string.deleted_named_item, block.title)
         InfoBlockEditDialog(
-            title = "Edit entry",
+            title = stringResource(R.string.info_edit_entry),
             initialTitle = block.title,
             initialContent = block.content,
             initialSensitive = block.isSensitive,
             initialExpiryDate = block.expiryDate,
             onDismiss = { blockPendingEdit = null },
             onConfirm = { title, content, sensitive, expiryDate ->
-                viewModel.updateBlock(block, title, content, sensitive, expiryDate)
+                onUpdateBlock(block, title, content, sensitive, expiryDate)
                 blockPendingEdit = null
             },
             onDelete = {
                 blockPendingEdit = null
                 scope.launch {
                     snackbarHostState.showUndoableDelete(
-                        message = "Deleted \"${block.title}\"",
-                        delete = { viewModel.deleteBlockWithUndo(block) },
-                        restore = { viewModel.restoreBlock(it) }
+                        message = deletedBlockMessage,
+                        actionLabel = undoActionLabel,
+                        delete = { onDeleteBlockWithUndo(block) },
+                        restore = { onRestoreBlock(it) }
                     )
                 }
             }
@@ -204,11 +240,11 @@ private fun LockedGate(categoryName: String, onUnlocked: () -> Unit, onBack: () 
     val preferencesRepository = rememberAppEntryPoint().preferencesRepository()
 
     Scaffold(
-        topBar = { DetailHeader(onBack = onBack, backLabel = "Vault") }
+        topBar = { DetailHeader(onBack = onBack, backLabel = stringResource(R.string.info_vault_label)) }
     ) { padding ->
         LockGateContent(
-            title = "Locked",
-            subtitle = "Verify it's you to view this information.",
+            title = stringResource(R.string.info_locked_title),
+            subtitle = stringResource(R.string.info_locked_subtitle),
             preferencesRepository = preferencesRepository,
             onUnlocked = onUnlocked,
             modifier = Modifier.padding(padding)
@@ -230,40 +266,40 @@ private fun InfoBlockRow(
 
     Card(
         onClick = onClick,
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.d0),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp, horizontal = 14.dp),
+                .padding(vertical = Dimens.d8, horizontal = Dimens.d14),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(Dimens.d36)
                     .clip(MaterialTheme.shapes.small)
-                    .background(accent.copy(alpha = 0.16f)),
+                    .background(accent.copy(alpha = AppAlpha.a16)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(imageVector = icon, contentDescription = null, tint = accent, modifier = Modifier.size(18.dp))
+                Icon(imageVector = icon, contentDescription = null, tint = accent, modifier = Modifier.size(Dimens.d18))
             }
             Column(modifier = Modifier
                 .weight(1f)
-                .padding(start = 12.dp)) {
+                .padding(start = Dimens.d12)) {
                 Text(text = block.title, style = MaterialTheme.typography.labelLarge)
                 Text(
                     text = if (revealed) block.content else "•".repeat(block.content.length.coerceIn(4, 12)),
                     style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 2.dp)
+                    modifier = Modifier.padding(top = Dimens.d2)
                 )
                 if (block.expiryDate != null) {
                     Text(
                         text = expiryLabel(block.expiryDate),
                         style = MaterialTheme.typography.labelSmall,
                         color = expiryColor(block.expiryDate),
-                        modifier = Modifier.padding(top = 2.dp)
+                        modifier = Modifier.padding(top = Dimens.d2)
                     )
                 }
             }
@@ -271,17 +307,17 @@ private fun InfoBlockRow(
                 IconButton(onClick = { revealed = !revealed }) {
                     Icon(
                         if (revealed) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                        contentDescription = if (revealed) "Hide" else "Reveal"
+                        contentDescription = if (revealed) stringResource(R.string.cd_hide) else stringResource(R.string.cd_reveal)
                     )
                 }
             }
             IconButton(onClick = onCopy) {
-                Icon(Icons.Filled.ContentCopy, contentDescription = "Copy")
+                Icon(Icons.Filled.ContentCopy, contentDescription = stringResource(R.string.cd_copy))
             }
             IconButton(onClick = onToggleFavorite) {
                 Icon(
                     if (block.isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder,
-                    contentDescription = if (block.isFavorite) "Unfavorite" else "Favorite",
+                    contentDescription = if (block.isFavorite) stringResource(R.string.cd_unfavorite) else stringResource(R.string.cd_favorite),
                     tint = if (block.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -294,12 +330,44 @@ private fun isExpiringSoon(expiryDate: Long, withinDays: Long = 30): Boolean {
     return daysLeft <= withinDays
 }
 
+@Composable
 private fun expiryLabel(expiryDate: Long): String {
     val daysLeft = TimeUnit.MILLISECONDS.toDays(expiryDate - System.currentTimeMillis())
     return when {
-        daysLeft < 0 -> "Expired ${formatDate(expiryDate)}"
-        daysLeft == 0L -> "Expires today"
-        else -> "Expires ${formatDate(expiryDate)}"
+        daysLeft < 0 -> stringResource(R.string.info_expired_on, formatDate(expiryDate))
+        daysLeft == 0L -> stringResource(R.string.info_expires_today)
+        else -> stringResource(R.string.info_expires_on, formatDate(expiryDate))
+    }
+}
+
+private val previewInfoCategory = InfoCategoryEntity(id = "cat-1", name = "Passports", icon = "badge", colorHex = "#6750A4", position = 0, updatedAt = 0L)
+
+private val previewInfoBlocks = listOf(
+    InfoBlockEntity(id = "block-1", categoryId = "cat-1", title = "Passport number", content = "X1234567", isSensitive = true, createdAt = 0L, updatedAt = 0L),
+    InfoBlockEntity(id = "block-2", categoryId = "cat-1", title = "Expiry", content = "Renew before travel", isFavorite = true, createdAt = 0L, updatedAt = 0L, expiryDate = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(10))
+)
+
+@Preview(showBackground = true)
+@Composable
+fun InfoCategoryDetailScreenPreview() {
+    SaveableAppTheme {
+        InfoCategoryDetailScreenContent(
+            category = previewInfoCategory,
+            blocks = previewInfoBlocks,
+            onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun InfoCategoryDetailScreenEmptyPreview() {
+    SaveableAppTheme {
+        InfoCategoryDetailScreenContent(
+            category = previewInfoCategory,
+            blocks = emptyList(),
+            onBack = {}
+        )
     }
 }
 

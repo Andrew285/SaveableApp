@@ -15,9 +15,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import com.rainyday.saveableapp.R
+import com.rainyday.saveableapp.ui.theme.Dimens
+import com.rainyday.saveableapp.ui.theme.SaveableAppTheme
 
 @Composable
 fun PinSetupDialog(
@@ -31,43 +35,43 @@ fun PinSetupDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Set app PIN") },
+        title = { Text(stringResource(R.string.pin_setup_title)) },
         text = {
             Column {
                 Text(
-                    text = "Used as a fallback unlock method wherever biometrics are required.",
+                    text = stringResource(R.string.pin_setup_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 OutlinedTextField(
                     value = pin,
                     onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) pin = it },
-                    label = { Text("New PIN (4-6 digits)") },
+                    label = { Text(stringResource(R.string.pin_setup_new_pin_label)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp)
+                        .padding(top = Dimens.d12)
                 )
                 OutlinedTextField(
                     value = confirmPin,
                     onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) confirmPin = it },
-                    label = { Text("Confirm PIN") },
+                    label = { Text(stringResource(R.string.pin_setup_confirm_pin_label)) },
                     singleLine = true,
                     isError = mismatch,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
+                        .padding(top = Dimens.d8)
                 )
                 if (mismatch) {
                     Text(
-                        text = "PINs don't match",
+                        text = stringResource(R.string.pin_setup_mismatch),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = Dimens.d4)
                     )
                 }
             }
@@ -76,10 +80,18 @@ fun PinSetupDialog(
             TextButton(
                 enabled = pinValid && pin == confirmPin,
                 onClick = { onConfirm(pin) }
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PinSetupDialogPreview() {
+    SaveableAppTheme {
+        PinSetupDialog(onDismiss = {}, onConfirm = {})
+    }
 }
