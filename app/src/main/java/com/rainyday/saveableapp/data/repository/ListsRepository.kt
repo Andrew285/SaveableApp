@@ -116,7 +116,7 @@ class ListsRepository(
 
     fun searchItems(query: String): Flow<List<SimpleListItemEntity>> = itemDao.search(query)
 
-    suspend fun createItem(listId: String, text: String, note: String?, url: String? = null): String {
+    suspend fun createItem(listId: String, text: String, note: String?, url: String? = null, imageUrl: String? = null): String {
         val position = itemDao.observeItemsForList(listId).first().size
         val now = System.currentTimeMillis()
         val itemId = UUID.randomUUID().toString()
@@ -127,6 +127,7 @@ class ListsRepository(
                 text = text,
                 note = note,
                 url = url,
+                imageUrl = imageUrl,
                 position = position,
                 createdAt = now,
                 updatedAt = now

@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -33,6 +35,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,6 +45,7 @@ import com.rainyday.saveableapp.data.local.FieldType
 import com.rainyday.saveableapp.data.local.SimpleListEntity
 import com.rainyday.saveableapp.ui.components.LinkPreviewCard
 import com.rainyday.saveableapp.ui.components.PillButtonFilled
+import com.rainyday.saveableapp.ui.components.RemoteThumbnail
 import com.rainyday.saveableapp.ui.components.SuggestedListChip
 import com.rainyday.saveableapp.ui.components.normalizeUrl
 import com.rainyday.saveableapp.ui.theme.Dimens
@@ -62,11 +66,12 @@ fun AiAddItemSheet(
     initialText: String,
     initialNote: String = "",
     initialUrl: String = "",
+    initialImageUrl: String = "",
     initialFieldValues: Map<String, String> = emptyMap(),
     suggestedNewListName: String? = null,
     onCreateSuggestedList: (suspend (String) -> String)? = null,
     onDismiss: () -> Unit,
-    onSave: (listId: String, text: String, note: String?, url: String?, fieldValues: Map<String, String>) -> Unit
+    onSave: (listId: String, text: String, note: String?, url: String?, imageUrl: String?, fieldValues: Map<String, String>) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -110,6 +115,18 @@ fun AiAddItemSheet(
                     .fillMaxWidth()
                     .padding(top = Dimens.d16)
             )
+
+            // Only shown when there's no link — a link's own thumbnail already renders below via
+            // LinkPreviewCard, so this is specifically the AI-enrichment (TMDb/Wikipedia) result.
+            if (initialImageUrl.isNotBlank() && link.isBlank()) {
+                RemoteThumbnail(
+                    url = initialImageUrl,
+                    modifier = Modifier
+                        .padding(top = Dimens.d12)
+                        .size(Dimens.d64)
+                        .clip(RoundedCornerShape(Dimens.d10))
+                )
+            }
 
             SectionLabel(stringResource(R.string.lists_destination_list_eyebrow))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -196,7 +213,8 @@ fun AiAddItemSheet(
                 text = stringResource(R.string.lists_add_to_list_action),
                 enabled = text.isNotBlank() && listId.isNotEmpty(),
                 onClick = {
-                    onSave(listId, text.trim(), note.trim().ifBlank { null }, normalizeUrl(link), fieldValues.toMap())
+                    val imageUrl = initialImageUrl.trim().ifBlank { null }.takeIf { link.isBlank() }
+                    onSave(listId, text.trim(), note.trim().ifBlank { null }, normalizeUrl(link), imageUrl, fieldValues.toMap())
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -252,7 +270,7 @@ private fun AiAddItemSheetPreview() {
             initialText = "Dune",
             initialNote = "Recommended by Alex",
             onDismiss = {},
-            onSave = { _, _, _, _, _ -> }
+            onSave = { _, _, _, _, _, _ -> }
         )
     }
 }
@@ -277,7 +295,7 @@ private fun AiAddIteSheetSuggestedListNamePreview() {
             suggestedNewListName = "Groceries",
             onCreateSuggestedList = { str -> "" },
             onDismiss = {},
-            onSave = { _, _, _, _, _ -> }
+            onSave = { _, _, _, _, _, _ -> }
         )
     }
 }

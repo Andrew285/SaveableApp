@@ -22,8 +22,9 @@ import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
-/** Per-flavor Cloud Function URL — see the "stage"/"prod" product flavors in app/build.gradle.kts. */
+/** Per-flavor Cloud Function URLs — see the "stage"/"prod" product flavors in app/build.gradle.kts. */
 private val ENDPOINT = BuildConfig.AI_PARSE_ENDPOINT
+private val ENRICH_ENDPOINT = BuildConfig.AI_ENRICH_ENDPOINT
 private val ISO_DATE = "yyyy-MM-dd"
 
 /** Fields extracted from free-form task text. Any field the model can't determine is left null. */
@@ -48,8 +49,22 @@ data class ParsedListItem(
     /** Custom field values keyed by the field's own name (as passed into [OpenRouterRepository.parseListItem]). */
     val fieldValues: Map<String, String>,
     /** A brand-new list name the model suggests when none of the existing lists fit, or null. */
-    val suggestedNewListName: String?
+    val suggestedNewListName: String?,
+    /** What real-world thing [text] names, so the caller can look up a poster/photo — see [EntityType]. */
+    val entityType: EntityType
 )
+
+/** What kind of real-world thing an item's title names, used to route enrichment lookups. */
+enum class EntityType {
+    MOVIE, TV,
+    /** Some other real, look-up-able thing (a place, book, person, historical topic, ...). */
+    GENERAL,
+    /** A plain task/grocery/generic item with no real-world identity worth looking up. */
+    NONE
+}
+
+/** A poster/photo and short description resolved for an item's title from a real-world data source. */
+data class EntityEnrichment(val imageUrl: String?, val description: String?)
 
 /** One custom field a simple list defines, e.g. "Rating" (RATING). */
 data class FieldSpec(val name: String, val type: FieldType)
@@ -59,7 +74,7 @@ data class SimpleListContext(val name: String, val fields: List<FieldSpec> = emp
 
 /**
  * Calls our Firebase Cloud Function ("aiParse"), which itself calls OpenRouter's OpenAI-compatible
- * chat completions endpoint (`openai/gpt-oss-20b`), to turn quick-add text into structured fields.
+ * chat completions endpoint (`openai/gpt-oss-120b`), to turn quick-add text into structured fields.
  *
  * The OpenRouter API key never lives on-device: the Cloud Function holds it as a secret and forwards
  * the request. The caller must be signed in with Google (see [FirebaseAuthRepository]) — its Firebase
@@ -143,6 +158,12 @@ class OpenRouterRepository(private val firebaseAuthRepository: FirebaseAuthRepos
           short new list name you'd propose creating for this item (e.g. "Recipes", "Wishlist"), based
           on the item's real category. Null whenever "list" is non-null, or when the item is too vague
           to suggest a sensible category.
+        - "entity_type": classify what "text" actually names, so a poster/photo can be looked up for it —
+          one of "movie" (a film), "tv" (a TV/streaming series), "general" (some other real,
+          look-up-able thing with its own identity — a place, book, person, historical event, animal,
+          product, etc.), or "none" (a plain task/grocery/generic item with no real-world identity worth
+          looking up, e.g. "buy milk" or "call the dentist"). Base this only on what the title itself
+          names, not on which list it belongs to.
 
         If the item text is just a URL (or a URL plus very little else), use the URL itself — its
         domain, path, and slug — plus what you know about that site to infer a real, human-readable
@@ -261,8 +282,33 @@ class OpenRouterRepository(private val firebaseAuthRepository: FirebaseAuthRepos
                 }
             }
         }
+        return postJson(ENDPOINT, idToken, requestBody.toString())
+    }
 
-        val connection = (URL(ENDPOINT).openConnection() as HttpURLConnection).apply {
+    /**
+     * Looks up a real poster/photo and short description for an item's title via our "enrichItem"
+     * Cloud Function, which itself queries TMDb (movies/TV) or Wikipedia (everything else) depending
+     * on [entityType]. Either result field may come back null if nothing was found.
+     */
+    suspend fun enrichEntity(entityType: EntityType, query: String): Result<EntityEnrichment> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val idToken = firebaseAuthRepository.getIdToken()
+                require(!idToken.isNullOrEmpty()) { "Sign in with Google in Settings to use AI task parsing." }
+
+                val requestBody = buildJsonObject {
+                    put("entityType", entityType.name.lowercase(Locale.US))
+                    put("query", query)
+                }
+                val responseBody = postJson(ENRICH_ENDPOINT, idToken, requestBody.toString())
+                val dto = json.decodeFromString<EntityEnrichmentDto>(responseBody)
+                EntityEnrichment(imageUrl = dto.imageUrl?.trim()?.takeIf { it.isNotBlank() }, description = dto.description?.trim()?.takeIf { it.isNotBlank() })
+            }
+        }
+
+    /** Posts [jsonBody] to [endpoint], authenticated with the caller's Firebase ID token. */
+    private fun postJson(endpoint: String, idToken: String, jsonBody: String): String {
+        val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             setRequestProperty("Authorization", "Bearer $idToken")
             setRequestProperty("Content-Type", "application/json")
@@ -272,7 +318,7 @@ class OpenRouterRepository(private val firebaseAuthRepository: FirebaseAuthRepos
         }
 
         return try {
-            connection.outputStream.use { it.write(requestBody.toString().toByteArray(Charsets.UTF_8)) }
+            connection.outputStream.use { it.write(jsonBody.toByteArray(Charsets.UTF_8)) }
             val responseCode = connection.responseCode
             val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
             val responseText = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
@@ -328,13 +374,17 @@ class OpenRouterRepository(private val firebaseAuthRepository: FirebaseAuthRepos
             spec.name to converted
         }.toMap()
 
+        val resolvedEntityType = entityType?.trim()?.uppercase(Locale.US)
+            ?.let { t -> runCatching { EntityType.valueOf(t) }.getOrNull() } ?: EntityType.NONE
+
         return ParsedListItem(
             text = text?.trim().takeUnless { it.isNullOrBlank() } ?: fallbackText,
             note = note?.trim()?.takeIf { it.isNotBlank() },
             url = url?.trim()?.takeIf { it.isNotBlank() },
             listName = resolvedListName,
             fieldValues = resolvedFieldValues,
-            suggestedNewListName = suggestedList?.trim()?.takeIf { it.isNotBlank() }
+            suggestedNewListName = suggestedList?.trim()?.takeIf { it.isNotBlank() },
+            entityType = resolvedEntityType
         )
     }
 
@@ -378,11 +428,18 @@ private data class ParsedListItemDto(
     val url: String? = null,
     val list: String? = null,
     @SerialName("suggested_list") val suggestedList: String? = null,
-    val fields: List<ParsedFieldDto> = emptyList()
+    val fields: List<ParsedFieldDto> = emptyList(),
+    @SerialName("entity_type") val entityType: String? = null
 )
 
 @Serializable
 private data class ParsedFieldDto(
     val name: String? = null,
     val value: String? = null
+)
+
+@Serializable
+private data class EntityEnrichmentDto(
+    val imageUrl: String? = null,
+    val description: String? = null
 )

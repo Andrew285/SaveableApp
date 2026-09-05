@@ -97,13 +97,13 @@ fun Map<String, Any?>.toSimpleListEntity(): SimpleListEntity = SimpleListEntity(
 )
 
 fun SimpleListItemEntity.toFirestoreMap(): Map<String, Any?> = mapOf(
-    "id" to id, "listId" to listId, "text" to text, "note" to note, "url" to url,
+    "id" to id, "listId" to listId, "text" to text, "note" to note, "url" to url, "imageUrl" to imageUrl,
     "isChecked" to isChecked, "position" to position, "createdAt" to createdAt, "updatedAt" to updatedAt
 )
 
 fun Map<String, Any?>.toSimpleListItemEntity(): SimpleListItemEntity = SimpleListItemEntity(
     id = str("id"), listId = str("listId"), text = str("text"), note = strOrNull("note"),
-    url = strOrNull("url"), isChecked = bool("isChecked"), position = int("position"),
+    url = strOrNull("url"), imageUrl = strOrNull("imageUrl"), isChecked = bool("isChecked"), position = int("position"),
     createdAt = long("createdAt"), updatedAt = long("updatedAt")
 )
 

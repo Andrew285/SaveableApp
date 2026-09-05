@@ -2,6 +2,7 @@ package com.rainyday.saveableapp.ui.screens.lists
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rainyday.saveableapp.data.ai.EntityType
 import com.rainyday.saveableapp.data.ai.FieldSpec
 import com.rainyday.saveableapp.data.ai.OpenRouterRepository
 import com.rainyday.saveableapp.data.ai.SimpleListContext
@@ -31,6 +32,7 @@ data class AiListItemDraft(
     val text: String,
     val note: String?,
     val url: String?,
+    val imageUrl: String?,
     val fieldValues: Map<String, String>,
     /** A brand-new list name the model suggested, if it didn't match any existing list — null otherwise. */
     val suggestedNewListName: String?
@@ -102,9 +104,16 @@ class SimpleListsViewModel @Inject constructor(
 
     suspend fun restoreList(snapshot: SimpleListSnapshot) = repository.restoreList(snapshot)
 
-    fun createItem(listId: String, text: String, note: String?, url: String?, fieldValues: Map<String, String> = emptyMap()) {
+    fun createItem(
+        listId: String,
+        text: String,
+        note: String?,
+        url: String?,
+        imageUrl: String? = null,
+        fieldValues: Map<String, String> = emptyMap()
+    ) {
         viewModelScope.launch {
-            val itemId = repository.createItem(listId, text, note, url)
+            val itemId = repository.createItem(listId, text, note, url, imageUrl)
             if (fieldValues.isNotEmpty()) repository.setItemFieldValues(itemId, fieldValues)
         }
     }
@@ -139,12 +148,23 @@ class SimpleListsViewModel @Inject constructor(
                     val fieldValues = resolveFieldValues(listId, parsed.fieldValues, fieldsSnapshot)
                     val suggestedNewListName = parsed.suggestedNewListName
                         ?.takeIf { name -> lists.value.orEmpty().none { it.list.name.equals(name, ignoreCase = true) } }
+
+                    // A link already gave us a real image (and often a note isn't needed); only ask the
+                    // enrichment lookup for one when there's no link and the title names a real,
+                    // look-up-able thing (a movie/show/place/etc.) rather than a plain task or grocery item.
+                    val enrichment = if (detectedUrl == null && parsed.entityType != EntityType.NONE) {
+                        openRouterRepository.enrichEntity(parsed.entityType, resolvedTitle ?: parsed.text).getOrNull()
+                    } else {
+                        null
+                    }
+
                     AiListItemOutcome.Success(
                         AiListItemDraft(
                             listId = listId,
                             text = resolvedTitle ?: parsed.text,
-                            note = parsed.note,
+                            note = parsed.note ?: enrichment?.description,
                             url = parsed.url ?: detectedUrl,
+                            imageUrl = resolvedPreview?.imageUrl ?: enrichment?.imageUrl,
                             fieldValues = fieldValues,
                             suggestedNewListName = suggestedNewListName
                         )

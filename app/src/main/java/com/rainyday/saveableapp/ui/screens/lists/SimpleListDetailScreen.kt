@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
@@ -73,6 +74,7 @@ import com.rainyday.saveableapp.ui.components.DetailHeader
 import com.rainyday.saveableapp.ui.components.EmptyState
 import com.rainyday.saveableapp.ui.components.FieldValueChip
 import com.rainyday.saveableapp.ui.components.LinkPreviewCard
+import com.rainyday.saveableapp.ui.components.RemoteThumbnail
 import com.rainyday.saveableapp.ui.components.showUndoableDelete
 import com.rainyday.saveableapp.ui.theme.AppAlpha
 import com.rainyday.saveableapp.ui.theme.Dimens
@@ -485,6 +487,15 @@ private fun ItemRow(
                         .size(Dimens.d8)
                         .padding(start = Dimens.d14, end = Dimens.d6),
                     tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            if (!item.imageUrl.isNullOrBlank() && item.url.isNullOrBlank()) {
+                RemoteThumbnail(
+                    url = item.imageUrl,
+                    modifier = Modifier
+                        .padding(start = Dimens.d4)
+                        .size(Dimens.d44)
+                        .clip(RoundedCornerShape(Dimens.d8))
                 )
             }
             Column(

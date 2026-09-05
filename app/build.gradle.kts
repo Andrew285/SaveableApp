@@ -71,6 +71,11 @@ android {
                 "AI_PARSE_ENDPOINT",
                 "\"https://us-central1-saveableapp-5b75b.cloudfunctions.net/aiParse\""
             )
+            buildConfigField(
+                "String",
+                "AI_ENRICH_ENDPOINT",
+                "\"https://us-central1-saveableapp-5b75b.cloudfunctions.net/enrichItem\""
+            )
         }
         create("prod") {
             dimension = "environment"
@@ -78,6 +83,11 @@ android {
                 "String",
                 "AI_PARSE_ENDPOINT",
                 "\"https://us-central1-saveable-app-prod.cloudfunctions.net/aiParse\""
+            )
+            buildConfigField(
+                "String",
+                "AI_ENRICH_ENDPOINT",
+                "\"https://us-central1-saveable-app-prod.cloudfunctions.net/enrichItem\""
             )
         }
     }

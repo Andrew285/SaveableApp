@@ -1,8 +1,9 @@
-# aiParse Cloud Function
+# aiParse / enrichItem Cloud Functions
 
-Authenticated proxy in front of OpenRouter (`openai/gpt-oss-20b`). Verifies the caller's Firebase ID
-token, enforces a free-tier daily quota via Firestore, then forwards the request using a server-side
-secret. See `src/index.ts` for the logic.
+`aiParse` is an authenticated proxy in front of OpenRouter (`openai/gpt-oss-120b`). `enrichItem` looks
+up a real poster/photo and short description for an item's title — TMDb for movies/TV, Wikipedia for
+everything else. Both verify the caller's Firebase ID token and share the same free-tier daily quota
+via Firestore, then do their real work using a server-side secret. See `src/index.ts` for the logic.
 
 ## One-time project setup
 
@@ -19,15 +20,17 @@ secret. See `src/index.ts` for the logic.
    make outbound network calls (to OpenRouter), even while usage stays inside the free tier.
 8. From the repo root: `firebase use --add` and select your project — this writes `.firebaserc`.
 
-## Secret
+## Secrets
 
-The OpenRouter API key is never committed or built into the app. Set it once per project:
+Neither key is ever committed or built into the app. Set each once per project:
 
 ```
 firebase functions:secrets:set OPENROUTER_API_KEY
+firebase functions:secrets:set TMDB_API_KEY
 ```
 
-(paste the key when prompted). Update it the same way to rotate it.
+(paste the key when prompted). Update the same way to rotate. `TMDB_API_KEY` is a free "API Key
+(v3 auth)" from https://www.themoviedb.org/settings/api (requires a free TMDb account).
 
 ## Deploy
 
@@ -39,9 +42,9 @@ npm run deploy
 
 Also deploy the Firestore rules from the repo root: `firebase deploy --only firestore:rules`
 
-After deploying, copy the function's URL (printed by the deploy command, format
-`https://us-central1-<project-id>.cloudfunctions.net/aiParse`) into `ENDPOINT` in
-`app/src/main/java/com/rainyday/saveableapp/data/ai/OpenRouterRepository.kt`.
+After deploying, copy each function's URL (printed by the deploy command, format
+`https://us-central1-<project-id>.cloudfunctions.net/<aiParse|enrichItem>`) into the matching
+`AI_PARSE_ENDPOINT` / `AI_ENRICH_ENDPOINT` `buildConfigField` for that flavor in `app/build.gradle.kts`.
 
 ## Granting someone Premium (unlimited calls)
 

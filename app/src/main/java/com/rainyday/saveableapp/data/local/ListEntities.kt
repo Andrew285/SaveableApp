@@ -38,6 +38,7 @@ data class SimpleListItemEntity(
     val text: String,
     val note: String? = null,
     val url: String? = null,
+    val imageUrl: String? = null,
     val isChecked: Boolean = false,
     val position: Int = 0,
     val createdAt: Long,

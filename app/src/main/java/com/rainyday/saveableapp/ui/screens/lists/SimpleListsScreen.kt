@@ -103,7 +103,7 @@ private fun SimpleListsScreenContent(
     onCreateListAndSelect: suspend (String) -> String = { "" },
     onDeleteListWithUndo: suspend (SimpleListEntity) -> SimpleListSnapshot = { SimpleListSnapshot(it, emptyList()) },
     onRestoreList: suspend (SimpleListSnapshot) -> Unit = {},
-    onCreateItem: (String, String, String?, String?, Map<String, String>) -> Unit = { _, _, _, _, _ -> },
+    onCreateItem: (String, String, String?, String?, String?, Map<String, String>) -> Unit = { _, _, _, _, _, _ -> },
     onParseItemWithAi: suspend (String) -> AiListItemOutcome = { AiListItemOutcome.Error("") }
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -243,12 +243,13 @@ private fun SimpleListsScreenContent(
             initialText = draft?.text ?: aiInputText,
             initialNote = draft?.note.orEmpty(),
             initialUrl = draft?.url.orEmpty(),
+            initialImageUrl = draft?.imageUrl.orEmpty(),
             initialFieldValues = draft?.fieldValues.orEmpty(),
             suggestedNewListName = draft?.suggestedNewListName,
             onCreateSuggestedList = onCreateListAndSelect,
             onDismiss = { showAiReviewSheet = false; aiDraft = null },
-            onSave = { listId, text, note, url, fieldValues ->
-                onCreateItem(listId, text, note, url, fieldValues)
+            onSave = { listId, text, note, url, imageUrl, fieldValues ->
+                onCreateItem(listId, text, note, url, imageUrl, fieldValues)
                 showAiReviewSheet = false
                 aiDraft = null
             }
